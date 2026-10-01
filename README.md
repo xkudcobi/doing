@@ -39,7 +39,7 @@ irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
 npm install -g github:xkudcobi/doing
 ```
 
-**Windows masaüstü kısayolu (ikonlu):** repoyu indirdiysen `powershell -ExecutionPolicy Bypass -File scriptsdesktop-shortcut.ps1`
+**Windows masaüstü kısayolu (ikonlu):** repoyu indirdiysen `powershell -ExecutionPolicy Bypass -File scripts/desktop-shortcut.ps1`
 
 ### Kullanım
 
@@ -129,7 +129,7 @@ irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
 npm install -g github:xkudcobi/doing
 ```
 
-**Windows desktop shortcut (with icon):** from a clone, run `powershell -ExecutionPolicy Bypass -File scriptsdesktop-shortcut.ps1`
+**Windows desktop shortcut (with icon):** from a clone, run `powershell -ExecutionPolicy Bypass -File scripts/desktop-shortcut.ps1`
 
 ### Usage
 
