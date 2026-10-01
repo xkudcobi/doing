@@ -12,6 +12,8 @@
 
 [English](#english) · [Türkçe](#türkçe)
 
+<img src="assets/screenshot.png" alt="doing — indirgec sekmesi" width="100%">
+
 ---
 
 ## Türkçe
@@ -24,6 +26,8 @@
 | **bozdurgac** | Shitpost makinesi: videoyu bilerek berbat eder. Görüntüyü piksel piksel yapar, sesi patlak, basslı ve anlaşılmaz hale getirir. Link ya da bilgisayardaki video; 4 mod: görüntü · görüntü + ses · sadece ses · ses → mp3. |
 
 Arayüz Türkçe ve İngilizce; varsayılan olarak sistem dilini kullanır.
+
+<img src="assets/screenshot-bozdurgac.png" alt="doing — bozdurgac sekmesi" width="100%">
 
 ### Kurulum
 

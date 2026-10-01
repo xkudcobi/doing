@@ -1,6 +1,6 @@
 {
   "name": "doing",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "download videos from 1800+ sites, convert mp4 to mp3, and remove visible AI watermarks — right from your terminal. Türkçe / English.",
   "type": "module",
   "bin": {
