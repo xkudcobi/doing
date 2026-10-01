@@ -8,6 +8,11 @@ import {resolveFfmpeg} from './ffmpeg.js'
 import {formatBytes} from './format.js'
 import {BIN_DIR} from './paths.js'
 
+// on Windows yt-dlp prints in the legacy code page by default, turning ç, ğ,
+// ü… in titles and paths into '�' — and a mangled printed path points at a
+// file that doesn't exist. (PYTHONIOENCODING is ignored by the .exe build.)
+const UTF8 = ['--encoding', 'utf-8']
+
 // the downloaded copy self-updates once it's this old — sites change fast
 const STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1000
 const RELEASE_BASE = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download'
@@ -117,7 +122,7 @@ export async function probe(ytdlp: string, url: string, signal?: AbortSignal): P
   const stdout = await new Promise<string>((resolve, reject) => {
     // --no-playlist keeps watch?v=…&list=… a single video; a bare playlist url
     // still comes back as a playlist, listed flat so the probe stays fast
-    const child = spawn(ytdlp, ['-J', '--no-playlist', '--flat-playlist', '--no-warnings', url])
+    const child = spawn(ytdlp, [...UTF8, '-J', '--no-playlist', '--flat-playlist', '--no-warnings', url])
     killOnAbort(child, signal)
     let out = ''
     let stderr = ''
@@ -281,7 +286,7 @@ export function download(
   if (opts.ffmpegLocation) args.push('--ffmpeg-location', opts.ffmpegLocation)
 
   return new Promise((resolve, reject) => {
-    const child = spawn(opts.ytdlp, args)
+    const child = spawn(opts.ytdlp, [...UTF8, ...args])
     killOnAbort(child, signal)
     activeChild = child
 

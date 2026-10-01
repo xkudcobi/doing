@@ -1205,6 +1205,7 @@ async function convertToMp3(opts, onProgress, signal) {
 }
 
 // src/lib/ytdlp.ts
+var UTF8 = ["--encoding", "utf-8"];
 var STALE_AFTER_MS = 14 * 24 * 60 * 60 * 1e3;
 var RELEASE_BASE = "https://github.com/yt-dlp/yt-dlp/releases/latest/download";
 function ytDlpAssetName() {
@@ -1254,7 +1255,7 @@ var isPlaylist = (info) => info._type === "playlist";
 var playlistSize = (info) => info.playlist_count ?? info.entries?.length ?? 0;
 async function probe(ytdlp, url, signal) {
   const stdout = await new Promise((resolve, reject) => {
-    const child = spawn3(ytdlp, ["-J", "--no-playlist", "--flat-playlist", "--no-warnings", url]);
+    const child = spawn3(ytdlp, [...UTF8, "-J", "--no-playlist", "--flat-playlist", "--no-warnings", url]);
     killOnAbort(child, signal);
     let out = "";
     let stderr = "";
@@ -1361,7 +1362,7 @@ function download(opts, handlers, signal) {
   ];
   if (opts.ffmpegLocation) args2.push("--ffmpeg-location", opts.ffmpegLocation);
   return new Promise((resolve, reject) => {
-    const child = spawn3(opts.ytdlp, args2);
+    const child = spawn3(opts.ytdlp, [...UTF8, ...args2]);
     killOnAbort(child, signal);
     activeChild = child;
     let stderr = "";
