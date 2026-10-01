@@ -91,7 +91,16 @@ export async function removeWatermark(
 
   const stage = await stagePaths(opts.input, output, ext)
   try {
-    const written = await runWmr({...opts, input: stage.input, output: stage.output, image}, onProgress, signal)
+    const base = {...opts, input: stage.input, output: stage.output, image}
+    let written = await runWmr(base, onProgress, signal)
+    // The exact reverse blend assumes Gemini's own overlay. On an edited or
+    // re-saved image (resized, recompressed, brightened) it leaves the mark
+    // nearly intact — so look again, and if it's still there, redo it with
+    // wmr's residual-only cleanup, which only touches the leftover pixels
+    if (written && image && (await stillMarked(opts.wmr, stage.output, signal))) {
+      await fs.rm(stage.output, {force: true, maxRetries: 10, retryDelay: 200})
+      written = await runWmr({...base, extraArgs: RESIDUAL_CLEANUP}, onProgress, signal)
+    }
     if (written && stage.output !== output) {
       await fs.copyFile(stage.output, output)
     }
@@ -100,6 +109,20 @@ export async function removeWatermark(
   } finally {
     await stage.cleanup()
   }
+}
+
+// Navier-Stokes inpainting of the residual only; strength/radius picked on an
+// edited Gemini image where the plain reversal left the sparkle almost intact
+const RESIDUAL_CLEANUP = ['--denoise', 'ns', '--strength', '300', '--radius', '15']
+
+/** Does wmr still see a visible mark on `image`? (`[VISIBLE V2] DETECTED`, not "not detected") */
+export function reportsMark(detectOutput: string): boolean {
+  return /\]\s+DETECTED\b/.test(detectOutput)
+}
+
+async function stillMarked(wmr: string, image: string, signal?: AbortSignal): Promise<boolean> {
+  const {output} = await runWithLines(wmr, ['detect', image, '--no-update-check'], () => {}, signal)
+  return reportsMark(output)
 }
 
 const isAscii = (value: string) => /^[\x20-\x7e]*$/.test(value)
@@ -138,7 +161,7 @@ async function stagePaths(input: string, output: string, ext: string) {
 
 /** Runs wmr; true when it wrote `output`, false when it found no watermark. */
 async function runWmr(
-  opts: {wmr: string; input: string; output: string; image: boolean; profile: VideoProfile},
+  opts: {wmr: string; input: string; output: string; image: boolean; profile: VideoProfile; extraArgs?: string[]},
   onProgress: (fraction: number) => void,
   signal?: AbortSignal,
 ): Promise<boolean> {
@@ -148,7 +171,7 @@ async function runWmr(
     : ['video', opts.input, '-o', output]
   if (!image && opts.profile === 'legacy') args.push('--legacy')
   if (!image && opts.profile === 'notebooklm') args.push('--notebooklm')
-  args.push('--no-update-check')
+  args.push(...(opts.extraArgs ?? []), '--no-update-check')
 
   let errorLine = ''
   const {code} = await runWithLines(

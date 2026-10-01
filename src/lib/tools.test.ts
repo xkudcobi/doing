@@ -4,7 +4,7 @@ import test from 'node:test'
 import {detectLang, nextLang, stringsFor} from '../i18n.js'
 import {parseDuration, parseProgressSeconds} from './ffmpeg.js'
 import {normalizeDroppedPath, uniquePath} from './paths.js'
-import {parseWmrProgress, wmrAsset} from './wmr.js'
+import {parseWmrProgress, reportsMark, wmrAsset} from './wmr.js'
 
 test('normalizes paths pasted by a file drop', () => {
   assert.equal(normalizeDroppedPath('"/videos/my clip.mp4"'), '/videos/my clip.mp4')
@@ -66,4 +66,9 @@ test('bozdurgac modes wreck exactly what they promise', async () => {
   const mp3 = mangleArgs('mp3')
   assert.equal(mp3.ext, '.mp3')
   assert.ok(mp3.args.includes('-vn') && has(mp3.args, EARRAPE_FILTER))
+})
+
+test('reads wmr detect output', () => {
+  assert.equal(reportsMark('[info] [VISIBLE V2] DETECTED (confidence: 78.1%)'), true)
+  assert.equal(reportsMark(['[info] [VISIBLE V2] not detected (0.0%)', '[info] [VISIBLE V1] not detected (2.1%)'].join('\n')), false)
 })

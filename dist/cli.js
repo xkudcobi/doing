@@ -2127,7 +2127,12 @@ async function removeWatermark(opts, onProgress, signal) {
   const output = uniquePath(opts.outDir, `${parsed.name}-${opts.suffix}`, ext);
   const stage = await stagePaths(opts.input, output, ext);
   try {
-    const written = await runWmr({ ...opts, input: stage.input, output: stage.output, image }, onProgress, signal);
+    const base = { ...opts, input: stage.input, output: stage.output, image };
+    let written = await runWmr(base, onProgress, signal);
+    if (written && image && await stillMarked(opts.wmr, stage.output, signal)) {
+      await fs8.rm(stage.output, { force: true, maxRetries: 10, retryDelay: 200 });
+      written = await runWmr({ ...base, extraArgs: RESIDUAL_CLEANUP }, onProgress, signal);
+    }
     if (written && stage.output !== output) {
       await fs8.copyFile(stage.output, output);
     }
@@ -2136,6 +2141,15 @@ async function removeWatermark(opts, onProgress, signal) {
   } finally {
     await stage.cleanup();
   }
+}
+var RESIDUAL_CLEANUP = ["--denoise", "ns", "--strength", "300", "--radius", "15"];
+function reportsMark(detectOutput) {
+  return /\]\s+DETECTED\b/.test(detectOutput);
+}
+async function stillMarked(wmr, image, signal) {
+  const { output } = await runWithLines(wmr, ["detect", image, "--no-update-check"], () => {
+  }, signal);
+  return reportsMark(output);
 }
 var isAscii = (value) => /^[\x20-\x7e]*$/.test(value);
 async function stagePaths(input, output, ext) {
@@ -2168,7 +2182,7 @@ async function runWmr(opts, onProgress, signal) {
   const args2 = image ? ["remove", opts.input, "-o", output, "--keep-provenance"] : ["video", opts.input, "-o", output];
   if (!image && opts.profile === "legacy") args2.push("--legacy");
   if (!image && opts.profile === "notebooklm") args2.push("--notebooklm");
-  args2.push("--no-update-check");
+  args2.push(...opts.extraArgs ?? [], "--no-update-check");
   let errorLine = "";
   const { code } = await runWithLines(
     opts.wmr,
