@@ -9,6 +9,7 @@
  */
 import {spawn} from 'node:child_process'
 import fs from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import {commandWorks, fetchToFile, runWithLines} from './exec.js'
 import {BIN_DIR, IMAGE_EXTS, extOf, uniquePath} from './paths.js'
@@ -85,8 +86,63 @@ export async function removeWatermark(
   await fs.mkdir(opts.outDir, {recursive: true})
   const parsed = path.parse(opts.input)
   const image = isImage(opts.input)
-  const output = uniquePath(opts.outDir, `${parsed.name}-${opts.suffix}`, image ? parsed.ext : '.mp4')
+  const ext = image ? parsed.ext : '.mp4'
+  const output = uniquePath(opts.outDir, `${parsed.name}-${opts.suffix}`, ext)
 
+  const stage = await stagePaths(opts.input, output, ext)
+  try {
+    const written = await runWmr({...opts, input: stage.input, output: stage.output, image}, onProgress, signal)
+    if (written && stage.output !== output) {
+      await fs.copyFile(stage.output, output)
+    }
+    if (!written) throw new NoWatermarkFound()
+    return output
+  } finally {
+    await stage.cleanup()
+  }
+}
+
+const isAscii = (value: string) => /^[\x20-\x7e]*$/.test(value)
+
+/**
+ * The Windows wmr build crashes (0xC0000409) when the input path has
+ * non-ASCII characters — "Masaüstü", "görsel.png" — and may mishandle such
+ * output paths too. There, route both through an ASCII-only temp folder.
+ */
+async function stagePaths(input: string, output: string, ext: string) {
+  const none = {input, output, cleanup: async () => {}}
+  if (process.platform !== 'win32' || (isAscii(input) && isAscii(output))) return none
+
+  // os.tmpdir() lives under the user folder, which isn't ASCII for every username
+  const candidates = [os.tmpdir(), path.join(process.env.PUBLIC ?? 'C:\\Users\\Public', 'doing-tmp'), 'C:\\ProgramData\\doing']
+  for (const base of candidates.filter(isAscii)) {
+    const dir = path.join(base, `doing-wmr-${process.pid}-${Date.now()}`)
+    try {
+      await fs.mkdir(dir, {recursive: true})
+    } catch {
+      continue
+    }
+    let stagedInput = input
+    if (!isAscii(input)) {
+      stagedInput = path.join(dir, `input${path.extname(input).toLowerCase()}`)
+      await fs.copyFile(input, stagedInput)
+    }
+    return {
+      input: stagedInput,
+      output: isAscii(output) ? output : path.join(dir, `output${ext}`),
+      cleanup: () => fs.rm(dir, {recursive: true, force: true, maxRetries: 10, retryDelay: 200}),
+    }
+  }
+  return none // no ASCII scratch space at all — let wmr try the real paths
+}
+
+/** Runs wmr; true when it wrote `output`, false when it found no watermark. */
+async function runWmr(
+  opts: {wmr: string; input: string; output: string; image: boolean; profile: VideoProfile},
+  onProgress: (fraction: number) => void,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  const {image, output} = opts
   const args = image
     ? ['remove', opts.input, '-o', output, '--keep-provenance']
     : ['video', opts.input, '-o', output]
@@ -120,10 +176,8 @@ export async function removeWatermark(
     throw new Error(errorLine || `wmr exited with code ${code}`)
   }
   // wmr exits 0 without writing anything when an image has no mark on it
-  try {
-    await fs.access(output)
-  } catch {
-    throw new NoWatermarkFound()
-  }
-  return output
+  return fs.access(output).then(
+    () => true,
+    () => false,
+  )
 }

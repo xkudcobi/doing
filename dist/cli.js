@@ -1873,6 +1873,7 @@ function FileJobTab({ job, onOutcome }) {
 // src/lib/wmr.ts
 import { spawn as spawn4 } from "child_process";
 import fs6 from "fs/promises";
+import os5 from "os";
 import path6 from "path";
 var RELEASE_BASE2 = "https://github.com/froggeric/gemini-watermark-and-synthid-remover/releases/latest/download";
 function wmrAsset(platform = process.platform, arch = process.arch) {
@@ -1922,7 +1923,48 @@ async function removeWatermark(opts, onProgress, signal) {
   await fs6.mkdir(opts.outDir, { recursive: true });
   const parsed = path6.parse(opts.input);
   const image = isImage(opts.input);
-  const output = uniquePath(opts.outDir, `${parsed.name}-${opts.suffix}`, image ? parsed.ext : ".mp4");
+  const ext = image ? parsed.ext : ".mp4";
+  const output = uniquePath(opts.outDir, `${parsed.name}-${opts.suffix}`, ext);
+  const stage = await stagePaths(opts.input, output, ext);
+  try {
+    const written = await runWmr({ ...opts, input: stage.input, output: stage.output, image }, onProgress, signal);
+    if (written && stage.output !== output) {
+      await fs6.copyFile(stage.output, output);
+    }
+    if (!written) throw new NoWatermarkFound();
+    return output;
+  } finally {
+    await stage.cleanup();
+  }
+}
+var isAscii = (value) => /^[\x20-\x7e]*$/.test(value);
+async function stagePaths(input, output, ext) {
+  const none = { input, output, cleanup: async () => {
+  } };
+  if (process.platform !== "win32" || isAscii(input) && isAscii(output)) return none;
+  const candidates = [os5.tmpdir(), path6.join(process.env.PUBLIC ?? "C:\\Users\\Public", "doing-tmp"), "C:\\ProgramData\\doing"];
+  for (const base of candidates.filter(isAscii)) {
+    const dir = path6.join(base, `doing-wmr-${process.pid}-${Date.now()}`);
+    try {
+      await fs6.mkdir(dir, { recursive: true });
+    } catch {
+      continue;
+    }
+    let stagedInput = input;
+    if (!isAscii(input)) {
+      stagedInput = path6.join(dir, `input${path6.extname(input).toLowerCase()}`);
+      await fs6.copyFile(input, stagedInput);
+    }
+    return {
+      input: stagedInput,
+      output: isAscii(output) ? output : path6.join(dir, `output${ext}`),
+      cleanup: () => fs6.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+    };
+  }
+  return none;
+}
+async function runWmr(opts, onProgress, signal) {
+  const { image, output } = opts;
   const args2 = image ? ["remove", opts.input, "-o", output, "--keep-provenance"] : ["video", opts.input, "-o", output];
   if (!image && opts.profile === "legacy") args2.push("--legacy");
   if (!image && opts.profile === "notebooklm") args2.push("--notebooklm");
@@ -1951,12 +1993,10 @@ async function removeWatermark(opts, onProgress, signal) {
     await fs6.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
     throw new Error(errorLine || `wmr exited with code ${code}`);
   }
-  try {
-    await fs6.access(output);
-  } catch {
-    throw new NoWatermarkFound();
-  }
-  return output;
+  return fs6.access(output).then(
+    () => true,
+    () => false
+  );
 }
 
 // src/tabs/tools.ts
