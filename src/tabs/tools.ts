@@ -9,6 +9,8 @@ export function convertJob(t: Strings): FileJob {
   return {
     button: t.convert.button,
     placeholder: t.convert.placeholder,
+    pickerTitle: t.convert.pickerTitle,
+    extensions: [...VIDEO_EXTS, ...AUDIO_EXTS],
     validate: file => (VIDEO_EXTS.has(extOf(file)) || AUDIO_EXTS.has(extOf(file)) ? undefined : t.convert.unsupported),
     running: t.convert.converting,
     run: async ({file, outDir, onProgress, signal}) => {
@@ -27,6 +29,8 @@ export function cleanJob(t: Strings, lang: Lang): FileJob {
   return {
     button: t.clean.button,
     placeholder: t.clean.placeholder,
+    pickerTitle: t.clean.pickerTitle,
+    extensions: [...IMAGE_EXTS, ...VIDEO_EXTS],
     validate: file => (IMAGE_EXTS.has(extOf(file)) || VIDEO_EXTS.has(extOf(file)) ? undefined : t.clean.unsupported),
     // images are auto-detected; videos need to know which product made them
     options: file =>

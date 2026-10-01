@@ -266,12 +266,19 @@ var en = {
     notFound: "can\u2019t find that file \u2014 drag it here or paste its full path",
     working: "working\u2026",
     starting: "starting\u2026",
-    cancelled: "Cancelled."
+    cancelled: "Cancelled.",
+    browse: "pick a file",
+    browseHint: "or press ^o to pick one from your computer",
+    browsing: "pick a file in the window that just opened\u2026",
+    filterLabel: "Supported files",
+    allLabel: "All files",
+    noPicker: "no file dialog on this system \u2014 install zenity or kdialog, or drag the file here"
   },
   convert: {
     button: "convert",
     placeholder: "C:\\videos\\clip.mp4 or ~/videos/clip.mp4",
     unsupported: "pick a video or audio file (mp4, mov, mkv, webm\u2026)",
+    pickerTitle: "doing \xB7 d\xF6nd\xFCrgec \u2014 pick a video",
     converting: "converting to mp3\u2026",
     noFfmpeg: "ffmpeg not found. Install ffmpeg or reinstall doing so its bundled copy is restored."
   },
@@ -279,6 +286,7 @@ var en = {
     button: "remove",
     placeholder: "gemini image (png/jpg/webp) or veo / notebooklm video",
     unsupported: "pick an image (png, jpg, webp) or a video (mp4, mov, mkv, webm)",
+    pickerTitle: "doing \xB7 sildirgec \u2014 pick an image or video",
     panelTitle: "Watermark",
     profileAuto: "Gemini / Veo \xB7 auto-detect",
     profileLegacy: "Veo \xB7 old text watermark",
@@ -348,12 +356,19 @@ var tr = {
     notFound: "dosya bulunamad\u0131 \u2014 buraya s\xFCr\xFCkle ya da tam yolunu yap\u0131\u015Ft\u0131r",
     working: "\xE7al\u0131\u015F\u0131yor\u2026",
     starting: "ba\u015Fl\u0131yor\u2026",
-    cancelled: "\u0130ptal edildi."
+    cancelled: "\u0130ptal edildi.",
+    browse: "dosya se\xE7",
+    browseHint: "ya da bilgisayardan se\xE7mek i\xE7in ^o",
+    browsing: "a\xE7\u0131lan pencereden bir dosya se\xE7\u2026",
+    filterLabel: "Desteklenen dosyalar",
+    allLabel: "T\xFCm dosyalar",
+    noPicker: "bu sistemde dosya se\xE7me penceresi yok \u2014 zenity ya da kdialog kur, ya da dosyay\u0131 buraya s\xFCr\xFCkle"
   },
   convert: {
     button: "d\xF6n\xFC\u015Ft\xFCr",
     placeholder: "C:\\videolar\\klip.mp4 ya da ~/videolar/klip.mp4",
     unsupported: "bir video ya da ses dosyas\u0131 se\xE7 (mp4, mov, mkv, webm\u2026)",
+    pickerTitle: "doing \xB7 d\xF6nd\xFCrgec \u2014 bir video se\xE7",
     converting: "mp3\u2019e d\xF6n\xFC\u015Ft\xFCr\xFCl\xFCyor\u2026",
     noFfmpeg: "ffmpeg bulunamad\u0131. ffmpeg kur ya da doing\u2019i yeniden kur (i\xE7indeki kopya geri gelir)."
   },
@@ -361,6 +376,7 @@ var tr = {
     button: "sil",
     placeholder: "gemini g\xF6rseli (png/jpg/webp) ya da veo / notebooklm videosu",
     unsupported: "bir g\xF6rsel (png, jpg, webp) ya da video (mp4, mov, mkv, webm) se\xE7",
+    pickerTitle: "doing \xB7 sildirgec \u2014 bir g\xF6rsel ya da video se\xE7",
     panelTitle: "Filigran",
     profileAuto: "Gemini / Veo \xB7 otomatik bul",
     profileLegacy: "Veo \xB7 eski yaz\u0131 filigran\u0131",
@@ -1655,6 +1671,62 @@ import { useCallback as useCallback2, useEffect as useEffect5, useRef as useRef4
 import path5 from "path";
 import { Box as Box7, Text as Text10, useApp as useApp2, useInput as useInput3 } from "ink";
 import SelectInput2 from "ink-select-input";
+
+// src/lib/file-picker.ts
+import { spawn as spawn3 } from "child_process";
+var NoPickerAvailable = class extends Error {
+};
+async function pickFile(options) {
+  if (process.platform === "win32") return pickWindows(options);
+  if (process.platform === "darwin") return pickMac(options);
+  return pickLinux(options);
+}
+function run(cmd, args2) {
+  return new Promise((resolve) => {
+    let stdout = "";
+    const child = spawn3(cmd, args2, { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => stdout += chunk);
+    child.on("error", () => resolve({ code: null, stdout: "", missing: true }));
+    child.on("close", (code) => resolve({ code, stdout: stdout.trim(), missing: false }));
+  });
+}
+var psQuote = (value) => `'${value.replace(/'/g, "''")}'`;
+async function pickWindows({ title, filterLabel, allLabel, extensions }) {
+  const patterns = extensions.map((ext) => `*${ext}`).join(";");
+  const script = [
+    "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
+    "Add-Type -AssemblyName System.Windows.Forms",
+    // an invisible topmost owner keeps the dialog in front of the terminal
+    "$owner = New-Object System.Windows.Forms.Form -Property @{TopMost = $true; ShowInTaskbar = $false}",
+    "$dialog = New-Object System.Windows.Forms.OpenFileDialog",
+    `$dialog.Title = ${psQuote(title)}`,
+    `$dialog.Filter = ${psQuote(`${filterLabel} (${patterns})|${patterns}|${allLabel} (*.*)|*.*`)}`,
+    "$dialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')",
+    "if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }"
+  ].join("; ");
+  const encoded = Buffer.from(script, "utf16le").toString("base64");
+  const { stdout, missing } = await run("powershell", ["-NoProfile", "-STA", "-NonInteractive", "-EncodedCommand", encoded]);
+  if (missing) throw new NoPickerAvailable();
+  return stdout || void 0;
+}
+async function pickMac({ title, extensions }) {
+  const types = extensions.map((ext) => `"${ext.slice(1)}"`).join(", ");
+  const script = `POSIX path of (choose file with prompt ${JSON.stringify(title)} of type {${types}})`;
+  const { code, stdout, missing } = await run("osascript", ["-e", script]);
+  if (missing) throw new NoPickerAvailable();
+  return code === 0 && stdout ? stdout : void 0;
+}
+async function pickLinux({ title, filterLabel, extensions }) {
+  const patterns = extensions.map((ext) => `*${ext}`).join(" ");
+  const zenity = await run("zenity", ["--file-selection", `--title=${title}`, `--file-filter=${filterLabel} | ${patterns}`]);
+  if (!zenity.missing) return zenity.code === 0 && zenity.stdout ? zenity.stdout : void 0;
+  const kdialog = await run("kdialog", ["--title", title, "--getopenfilename", ".", patterns]);
+  if (!kdialog.missing) return kdialog.code === 0 && kdialog.stdout ? kdialog.stdout : void 0;
+  throw new NoPickerAvailable();
+}
+
+// src/tabs/file-job-tab.tsx
 import { Fragment as Fragment4, jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 function FileJobTab({ job, onOutcome }) {
   const theme = useTheme();
@@ -1716,12 +1788,23 @@ function FileJobTab({ job, onOutcome }) {
       start(file);
     }
   };
+  const browse = () => {
+    if (phase.name !== "input" || phase.browsing) return;
+    setPhase({ name: "input", browsing: true });
+    void pickFile({ title: job.pickerTitle, filterLabel: t.file.filterLabel, allLabel: t.file.allLabel, extensions: job.extensions }).then((file) => {
+      if (file) submit(file);
+      else setPhase((prev) => prev.name === "input" ? { name: "input" } : prev);
+    }).catch(
+      (error) => setPhase({ name: "input", warning: error instanceof NoPickerAvailable ? t.file.noPicker : errorMessage(error) })
+    );
+  };
   const pick = (index) => {
     if (phase.name !== "picking") return;
     start(phase.file, phase.options[index]?.value);
   };
   useInput3(
-    (_input, key) => {
+    (input2, key) => {
+      if (key.ctrl && input2 === "o") browse();
       if (key.escape && (phase.name === "picking" || phase.name === "error" || phase.name === "done")) resetToInput();
       if (key.escape && busy) cancelRun();
       if (key.return && (phase.name === "error" || phase.name === "done")) resetToInput();
@@ -1731,7 +1814,7 @@ function FileJobTab({ job, onOutcome }) {
   const quit = ["^c", t.hint.quit, () => exit()];
   const back = ["esc", t.hint.back, resetToInput];
   const own = {
-    input: [["\u21B5", t.hint.go, () => submit(input)], quit],
+    input: [["\u21B5", t.hint.go, () => submit(input)], ["^o", t.file.browse, browse], quit],
     picking: [["\u2191\u2193", t.hint.choose], ["\u21B5", t.hint.go, () => pick(highlightRef.current)], back, quit],
     running: [["esc", t.hint.cancel, cancelRun], quit],
     done: [back, quit],
@@ -1760,10 +1843,7 @@ function FileJobTab({ job, onOutcome }) {
           submitOnPaste: (value) => isExistingFile(normalizeDroppedPath(value))
         }
       ) }),
-      phase.warning ? /* @__PURE__ */ jsxs9(Text10, { color: theme.gray, dimColor: theme.dimSecondary, children: [
-        "\u2717 ",
-        phase.warning
-      ] }) : null
+      /* @__PURE__ */ jsx11(Text10, { color: theme.gray, dimColor: theme.dimSecondary, children: phase.warning ? `\u2717 ${phase.warning}` : phase.browsing ? t.file.browsing : t.file.browseHint })
     ] }),
     phase.name === "picking" && /* @__PURE__ */ jsxs9(Box7, { flexDirection: "column", alignItems: "center", children: [
       /* @__PURE__ */ jsx11(Text10, { bold: true, color: theme.primary, children: fileName(phase.file) }),
@@ -1791,7 +1871,7 @@ function FileJobTab({ job, onOutcome }) {
 }
 
 // src/lib/wmr.ts
-import { spawn as spawn3 } from "child_process";
+import { spawn as spawn4 } from "child_process";
 import fs6 from "fs/promises";
 import path6 from "path";
 var RELEASE_BASE2 = "https://github.com/froggeric/gemini-watermark-and-synthid-remover/releases/latest/download";
@@ -1809,7 +1889,7 @@ function wmrBinary(dir) {
 function extract(archive, into) {
   const tar = process.platform === "win32" ? path6.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
   return new Promise((resolve, reject) => {
-    const child = spawn3(tar, ["-xf", archive, "-C", into], { stdio: "ignore" });
+    const child = spawn4(tar, ["-xf", archive, "-C", into], { stdio: "ignore" });
     child.on("error", reject);
     child.on("close", (code) => code === 0 ? resolve() : reject(new Error(`tar exited with code ${code}`)));
   });
@@ -1884,6 +1964,8 @@ function convertJob(t) {
   return {
     button: t.convert.button,
     placeholder: t.convert.placeholder,
+    pickerTitle: t.convert.pickerTitle,
+    extensions: [...VIDEO_EXTS, ...AUDIO_EXTS],
     validate: (file) => VIDEO_EXTS.has(extOf(file)) || AUDIO_EXTS.has(extOf(file)) ? void 0 : t.convert.unsupported,
     running: t.convert.converting,
     run: async ({ file, outDir: outDir2, onProgress, signal }) => {
@@ -1898,6 +1980,8 @@ function cleanJob(t, lang2) {
   return {
     button: t.clean.button,
     placeholder: t.clean.placeholder,
+    pickerTitle: t.clean.pickerTitle,
+    extensions: [...IMAGE_EXTS, ...VIDEO_EXTS],
     validate: (file) => IMAGE_EXTS.has(extOf(file)) || VIDEO_EXTS.has(extOf(file)) ? void 0 : t.clean.unsupported,
     // images are auto-detected; videos need to know which product made them
     options: (file) => isImage(file) ? void 0 : [

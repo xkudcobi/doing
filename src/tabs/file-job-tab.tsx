@@ -8,6 +8,7 @@ import {TextInput} from '../components/text-input.js'
 import {useStrings} from '../i18n.js'
 import type {ClickTarget} from '../lib/click-map.js'
 import {truncate} from '../lib/format.js'
+import {NoPickerAvailable, pickFile} from '../lib/file-picker.js'
 import {isExistingFile, normalizeDroppedPath} from '../lib/paths.js'
 import {useTheme} from '../theme.js'
 import {ChoiceIndicator, ChoiceItem} from './download-tab.js'
@@ -31,6 +32,10 @@ export type JobContext = {
 export type FileJob = {
   button: string
   placeholder: string
+  /** title of the OS file dialog (^o) */
+  pickerTitle: string
+  /** what the file dialog offers, with the dot */
+  extensions: string[]
   /** an error message when the file isn't something this tool handles */
   validate: (file: string) => string | undefined
   /** choices to offer before running, e.g. the watermark profile for videos */
@@ -42,7 +47,7 @@ export type FileJob = {
 }
 
 type Phase =
-  | {name: 'input'; warning?: string}
+  | {name: 'input'; warning?: string; browsing?: boolean}
   | {name: 'picking'; file: string; options: JobOption[]}
   | {name: 'running'; file: string; fraction?: number; status: string}
   | {name: 'done'; filepath: string}
@@ -115,13 +120,28 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
     }
   }
 
+  // the OS's own open-file dialog; the chosen file goes through the same checks as a dropped one
+  const browse = () => {
+    if (phase.name !== 'input' || phase.browsing) return
+    setPhase({name: 'input', browsing: true})
+    void pickFile({title: job.pickerTitle, filterLabel: t.file.filterLabel, allLabel: t.file.allLabel, extensions: job.extensions})
+      .then(file => {
+        if (file) submit(file)
+        else setPhase(prev => (prev.name === 'input' ? {name: 'input'} : prev))
+      })
+      .catch(error =>
+        setPhase({name: 'input', warning: error instanceof NoPickerAvailable ? t.file.noPicker : errorMessage(error)}),
+      )
+  }
+
   const pick = (index: number) => {
     if (phase.name !== 'picking') return
     start(phase.file, phase.options[index]?.value)
   }
 
   useInput(
-    (_input, key) => {
+    (input, key) => {
+      if (key.ctrl && input === 'o') browse()
       if (key.escape && (phase.name === 'picking' || phase.name === 'error' || phase.name === 'done')) resetToInput()
       if (key.escape && busy) cancelRun()
       if (key.return && (phase.name === 'error' || phase.name === 'done')) resetToInput()
@@ -132,7 +152,7 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
   const quit: Hint = ['^c', t.hint.quit, () => exit()]
   const back: Hint = ['esc', t.hint.back, resetToInput]
   const own: Record<Phase['name'], Hint[]> = {
-    input: [['↵', t.hint.go, () => submit(input)], quit],
+    input: [['↵', t.hint.go, () => submit(input)], ['^o', t.file.browse, browse], quit],
     picking: [['↑↓', t.hint.choose], ['↵', t.hint.go, () => pick(highlightRef.current)], back, quit],
     running: [['esc', t.hint.cancel, cancelRun], quit],
     done: [back, quit],
@@ -166,7 +186,9 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
               submitOnPaste={value => isExistingFile(normalizeDroppedPath(value))}
             />
           </FramedInput>
-          {phase.warning ? <Text color={theme.gray} dimColor={theme.dimSecondary}>✗ {phase.warning}</Text> : null}
+          <Text color={theme.gray} dimColor={theme.dimSecondary}>
+            {phase.warning ? `✗ ${phase.warning}` : phase.browsing ? t.file.browsing : t.file.browseHint}
+          </Text>
         </Box>
       )}
 
