@@ -7,6 +7,7 @@ test('parses a url and a spaced theme option without confusing the value for the
   assert.deepEqual(parseArgs(['--theme', 'light', 'https://example.com/video']), {
     help: false,
     version: false,
+    update: false,
     themeMode: 'light',
     initialUrl: 'https://example.com/video',
   })
@@ -16,6 +17,7 @@ test('parses an equals-style theme option after the url', () => {
   assert.deepEqual(parseArgs(['https://example.com/video', '--theme=dark']), {
     help: false,
     version: false,
+    update: false,
     themeMode: 'dark',
     initialUrl: 'https://example.com/video',
   })
@@ -26,6 +28,19 @@ test('rejects missing, invalid, and unknown options', () => {
   assert.match(parseArgs(['--theme', 'sepia']).error ?? '', /unknown theme/)
   assert.match(parseArgs(['--wat']).error ?? '', /unknown option/)
   assert.match(parseArgs(['one', 'two']).error ?? '', /single url/)
+  assert.match(parseArgs(['--lang', 'de']).error ?? '', /unknown language/)
+  assert.match(parseArgs(['--best', '--mp3', 'https://a.b']).error ?? '', /either/)
+  assert.match(parseArgs(['--mp3']).error ?? '', /needs a url/)
+  assert.match(parseArgs(['-o']).error ?? '', /needs a folder/)
+})
+
+test('parses the doing-only flags', () => {
+  const args = parseArgs(['--mp3', '-o', 'out', '--lang=en', 'https://youtu.be/x'])
+  assert.equal(args.mp3, true)
+  assert.equal(args.outDir, 'out')
+  assert.equal(args.lang, 'en')
+  assert.equal(args.initialUrl, 'https://youtu.be/x')
+  assert.equal(parseArgs(['--update']).update, true)
 })
 
 test('recognizes only supported modes and cycles through all of them', () => {

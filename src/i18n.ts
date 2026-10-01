@@ -1,0 +1,210 @@
+import React, {createContext, type ReactNode, useContext} from 'react'
+
+export const LANGS = ['tr', 'en'] as const
+export type Lang = (typeof LANGS)[number]
+
+const en = {
+  tagline: 'download it. convert it. clean it. done.',
+  // tab-specific subtitle under the tagline
+  subtitle: {
+    download: 'youtube · x · instagram · threads · tiktok · +1800 more',
+    convert: 'mp4 → mp3 · any video your ffmpeg can read',
+    clean: 'visible gemini · veo · notebooklm watermarks',
+  },
+  hint: {
+    go: 'go',
+    quit: 'quit',
+    cancel: 'cancel',
+    choose: 'choose',
+    back: 'back',
+    tryAgain: 'try again',
+    history: 'history',
+    tabs: 'tabs',
+    theme: 'theme',
+    lang: 'lang',
+  },
+  download: {
+    button: 'download',
+    inputTitle: 'Paste a link',
+    placeholder: 'https://youtube.com/watch?v=…',
+    notALink: 'that doesn’t look like a link — paste a full url',
+    clipboardOffer: 'link in your clipboard — ⇥ to paste it',
+    clipboardAccepted: 'from your clipboard — ↵ to download it',
+    warmingUp: 'warming up…',
+    fetchingYtDlp: 'first run: fetching yt-dlp…',
+    updatingYtDlp: 'updating yt-dlp…',
+    fetchingInfo: 'fetching video info…',
+    panelTitle: 'Download',
+    audioOnly: 'audio only · mp3',
+    bestAvailable: 'best available · mp4',
+    playlistVideo: (count: number) => `all ${count} videos · best mp4`,
+    playlistAudio: (count: number) => `all ${count} videos · mp3`,
+    playlistMeta: (count: number) => `playlist · ${count} videos`,
+    part: (part: number, total: number) => `part ${part}/${total}`,
+    item: (item: number, total: number) => `video ${item}/${total}`,
+    left: 'left',
+    processing: 'processing…',
+    downloading: 'downloading…',
+    starting: 'starting download…',
+    linkExpired: 'link expired — grabbing a fresh one…',
+    cancelled: 'Download cancelled.',
+  },
+  file: {
+    inputTitle: 'Drop a file or type its path',
+    notFound: 'can’t find that file — drag it here or paste its full path',
+    working: 'working…',
+    starting: 'starting…',
+    cancelled: 'Cancelled.',
+  },
+  convert: {
+    button: 'convert',
+    placeholder: 'C:\\videos\\clip.mp4 or ~/videos/clip.mp4',
+    unsupported: 'pick a video or audio file (mp4, mov, mkv, webm…)',
+    converting: 'converting to mp3…',
+    noFfmpeg: 'ffmpeg not found. Install ffmpeg or reinstall doing so its bundled copy is restored.',
+  },
+  clean: {
+    button: 'remove',
+    placeholder: 'gemini image (png/jpg/webp) or veo / notebooklm video',
+    unsupported: 'pick an image (png, jpg, webp) or a video (mp4, mov, mkv, webm)',
+    panelTitle: 'Watermark',
+    profileAuto: 'Gemini / Veo · auto-detect',
+    profileLegacy: 'Veo · old text watermark',
+    profileNotebook: 'NotebookLM · logo + wordmark',
+    fetchingWmr: 'first run: fetching the watermark engine (~70 MB)…',
+    removing: 'removing watermark…',
+    noneFound: 'No visible watermark found in this file — nothing was changed.',
+    unsupportedPlatform: (platform: string) => `The watermark engine has no build for ${platform}.`,
+  },
+  done: {
+    title: '✓ done!',
+    find: 'find your file in:',
+    findFolder: 'find your files in:',
+    another: '↵ another one',
+  },
+  errors: {
+    downloadFailed: (what: string, status: number) =>
+      `Could not download ${what} (${status}). Check your connection and try again.`,
+  },
+}
+
+export type Strings = typeof en
+
+const tr: Strings = {
+  tagline: 'indir. dönüştür. temizle. bitti.',
+  subtitle: {
+    download: 'youtube · x · instagram · threads · tiktok · +1800 site',
+    convert: 'mp4 → mp3 · ffmpeg’in açabildiği her video',
+    clean: 'görünür gemini · veo · notebooklm filigranları',
+  },
+  hint: {
+    go: 'başlat',
+    quit: 'çık',
+    cancel: 'iptal',
+    choose: 'seç',
+    back: 'geri',
+    tryAgain: 'tekrar dene',
+    history: 'geçmiş',
+    tabs: 'sekmeler',
+    theme: 'tema',
+    lang: 'dil',
+  },
+  download: {
+    button: 'indir',
+    inputTitle: 'Bir link yapıştır',
+    placeholder: 'https://youtube.com/watch?v=…',
+    notALink: 'bu bir link gibi görünmüyor — tam adresi yapıştır',
+    clipboardOffer: 'panoda bir link var — yapıştırmak için ⇥',
+    clipboardAccepted: 'panodan alındı — indirmek için ↵',
+    warmingUp: 'hazırlanıyor…',
+    fetchingYtDlp: 'ilk çalıştırma: yt-dlp indiriliyor…',
+    updatingYtDlp: 'yt-dlp güncelleniyor…',
+    fetchingInfo: 'video bilgisi alınıyor…',
+    panelTitle: 'İndir',
+    audioOnly: 'sadece ses · mp3',
+    bestAvailable: 'en iyi kalite · mp4',
+    playlistVideo: (count: number) => `${count} videonun hepsi · en iyi mp4`,
+    playlistAudio: (count: number) => `${count} videonun hepsi · mp3`,
+    playlistMeta: (count: number) => `oynatma listesi · ${count} video`,
+    part: (part: number, total: number) => `parça ${part}/${total}`,
+    item: (item: number, total: number) => `video ${item}/${total}`,
+    left: 'kaldı',
+    processing: 'işleniyor…',
+    downloading: 'indiriliyor…',
+    starting: 'indirme başlıyor…',
+    linkExpired: 'linkin süresi dolmuş — yenisi alınıyor…',
+    cancelled: 'İndirme iptal edildi.',
+  },
+  file: {
+    inputTitle: 'Dosyayı sürükle ya da yolunu yaz',
+    notFound: 'dosya bulunamadı — buraya sürükle ya da tam yolunu yapıştır',
+    working: 'çalışıyor…',
+    starting: 'başlıyor…',
+    cancelled: 'İptal edildi.',
+  },
+  convert: {
+    button: 'dönüştür',
+    placeholder: 'C:\\videolar\\klip.mp4 ya da ~/videolar/klip.mp4',
+    unsupported: 'bir video ya da ses dosyası seç (mp4, mov, mkv, webm…)',
+    converting: 'mp3’e dönüştürülüyor…',
+    noFfmpeg: 'ffmpeg bulunamadı. ffmpeg kur ya da doing’i yeniden kur (içindeki kopya geri gelir).',
+  },
+  clean: {
+    button: 'sil',
+    placeholder: 'gemini görseli (png/jpg/webp) ya da veo / notebooklm videosu',
+    unsupported: 'bir görsel (png, jpg, webp) ya da video (mp4, mov, mkv, webm) seç',
+    panelTitle: 'Filigran',
+    profileAuto: 'Gemini / Veo · otomatik bul',
+    profileLegacy: 'Veo · eski yazı filigranı',
+    profileNotebook: 'NotebookLM · logo + yazı',
+    fetchingWmr: 'ilk çalıştırma: filigran motoru indiriliyor (~70 MB)…',
+    removing: 'filigran siliniyor…',
+    noneFound: 'Bu dosyada görünür filigran bulunamadı — hiçbir şey değiştirilmedi.',
+    unsupportedPlatform: (platform: string) => `Filigran motorunun ${platform} için sürümü yok.`,
+  },
+  done: {
+    title: '✓ bitti!',
+    find: 'dosyan burada:',
+    findFolder: 'dosyaların burada:',
+    another: '↵ bir tane daha',
+  },
+  errors: {
+    downloadFailed: (what: string, status: number) =>
+      `${what} indirilemedi (${status}). Bağlantını kontrol edip tekrar dene.`,
+  },
+}
+
+const strings: Record<Lang, Strings> = {en, tr}
+
+export function stringsFor(lang: Lang): Strings {
+  return strings[lang]
+}
+
+export function isLang(value: unknown): value is Lang {
+  return typeof value === 'string' && (LANGS as readonly string[]).includes(value)
+}
+
+export function nextLang(lang: Lang): Lang {
+  return LANGS[(LANGS.indexOf(lang) + 1) % LANGS.length]!
+}
+
+/** Turkish when the system locale is Turkish, English otherwise. */
+export function detectLang(env: NodeJS.ProcessEnv = process.env): Lang {
+  const fromEnv = env.LC_ALL || env.LC_MESSAGES || env.LANG || ''
+  if (fromEnv) return fromEnv.toLowerCase().startsWith('tr') ? 'tr' : 'en'
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith('tr') ? 'tr' : 'en'
+  } catch {
+    return 'en'
+  }
+}
+
+const LangContext = createContext<Strings>(en)
+
+export function LangProvider({lang, children}: {lang: Lang; children: ReactNode}) {
+  return React.createElement(LangContext.Provider, {value: stringsFor(lang)}, children)
+}
+
+export function useStrings(): Strings {
+  return useContext(LangContext)
+}

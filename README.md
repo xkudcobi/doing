@@ -1,95 +1,175 @@
-# yoinks
+# doing
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-  <img src="assets/logo-light.svg" alt="yoinks" width="288">
-</picture>
-
-yoink any video. paste. yoink. done.
-
-Download videos from YouTube, X/Twitter, Instagram, Threads, TikTok and
-1,800+ other sites — right from your terminal. Paste a url, pick a
-resolution (or audio-only mp3), done. No popups, no fake download buttons,
-no sketchy redirects.
-
-<img src="assets/home.png" alt="yoinks home screen — paste a link and hit yoink" width="100%">
-
-## Install
-
-```sh
-npm install -g yoinks
+```
+█▀▄ █▀█ ▀█▀ █▄ █ █▀▀▀
+█ ▓ █ ▓  ▓  █ ▀▓ █ ▀▓
+▀▀  ▀▀▀ ▀▀▀ ▀  ▀ ▀▀▀▀
 ```
 
-Or try it without installing anything:
+**indir. dönüştür. temizle. bitti.** — terminalden çalışan, üç araçlı küçük bir medya kutusu.
+
+[English](#english) · [Türkçe](#türkçe)
+
+---
+
+## Türkçe
+
+| Sekme | Ne yapar |
+|---|---|
+| **indirgec** | YouTube, X/Twitter, Instagram, Threads, TikTok ve 1800+ siteden video indirir. Çözünürlük seç ya da sadece mp3 al. Oynatma listelerini de indirir. |
+| **döndürgec** | Bilgisayarındaki mp4'ü (ya da herhangi bir videoyu) mp3'e dönüştürür. |
+| **sildirgec** | Kendi ürettiğin Gemini görsellerindeki ve Veo / NotebookLM videolarındaki **görünür** filigranı siler. |
+
+Arayüz Türkçe ve İngilizce; varsayılan olarak sistem dilini kullanır.
+
+### Kurulum
+
+Node.js 18 veya üstü gerekir. Geri kalan her şey (yt-dlp, ffmpeg, filigran motoru) otomatik gelir.
 
 ```sh
-npx yoinks
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/xkudcobi/doing/main/install.sh | sh
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
+
+# ya da doğrudan npm ile
+npm install -g github:xkudcobi/doing
 ```
 
-Requires Node 18+. Everything else (yt-dlp, ffmpeg) is fetched or bundled
-automatically.
-
-## Usage
+### Kullanım
 
 ```sh
-$ yoinks https://youtu.be/dQw4w9WgXcQ    # straight to the format picker
-$ yoinks                                 # prompts for a url
-$ yoinks --theme light                   # force the light palette
+doing                                   # uygulamayı aç
+doing https://youtu.be/dQw4w9WgXcQ      # linkle aç, direkt format seçimine geç
+doing --mp3 https://youtu.be/…          # sormadan mp3 indir
+doing --best https://youtu.be/…         # sormadan en yüksek kaliteyi indir
+doing -o ~/Videolar https://x.com/…     # başka klasöre kaydet
+doing --lang en                         # İngilizce arayüz
+doing --update                          # yt-dlp ve filigran motorunu güncelle
 ```
 
-yoinks takes over the terminal (full-screen, centered — and restores your
-scrollback on exit). Pick a format with ↑/↓ (or j/k, or number keys) and
-hit enter. `esc` goes back, `^c` quits. Or just use the mouse — the yoink
-button, the format list and the footer hints are all clickable, and
-clicking the logo takes you back home. Files are saved to `~/Downloads`,
-and the file path is printed to your terminal when you're done.
+**Kısayollar:** `⇧⇥` sekme değiştir · `↑↓` seç · `↵` başlat · `esc` geri/iptal · `^l` dil · `^t` tema · `^c` çık.
+Fareyle de kullanılabilir: sekmeler, butonlar, liste ve alttaki kısayollar tıklanabilir; logoya tıklamak başa döner.
 
-The default `auto` theme uses your terminal's own foreground and background,
-so it follows light and dark terminal themes without guessing. Press `^t` or
-click the theme control in the footer to cycle through `auto`, `light`, and
-`dark` for the current session. Use `--theme auto`, `--theme light`, or
-`--theme dark` to choose the starting theme for one launch.
+**döndürgec / sildirgec:** Dosyayı terminal penceresine sürükle (yolu otomatik yapıştırılır ve işlem başlar) ya da tam yolunu yaz.
+Çıktılar varsayılan olarak `~/Downloads` klasörüne kaydedilir. Aynı adda bir dosya varsa üzerine yazılmaz, `ad (2).mp3` olarak kaydedilir.
 
-<img src="assets/download-options.png" alt="yoinks format picker — resolutions with estimated file sizes, plus audio-only mp3" width="100%">
+### Nasıl çalışır
 
-## How it works
+- **indirgec**, [yt-dlp](https://github.com/yt-dlp/yt-dlp) kullanır. Sistemde yoksa ilk açılışta `~/.doing/bin` içine indirilir ve iki haftada bir kendini günceller.
+- **döndürgec**, ffmpeg kullanır. Önce sistemdekine bakar, yoksa paketle gelen `ffmpeg-static` kopyasını kullanır.
+- **sildirgec**, [wmr](https://github.com/froggeric/gemini-watermark-and-synthid-remover) motorunu kullanır. Motor ilk kullanımda (~70 MB) `~/.doing/bin` içine indirilir. Görsellerde filigranı, matematiksel olarak tersine çevrilen alpha karışımıyla birebir kaldırır. Windows x64, macOS ve Linux x64 desteklenir.
+- Arayüz, terminal için React olan [Ink](https://github.com/vadimdemedes/ink) ile yazıldı.
 
-- Powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp). On first run,
-  yoinks downloads the standalone yt-dlp binary to `~/.yoinks/bin` —
-  no Python required. If you already have yt-dlp installed, it uses yours.
-- ffmpeg (needed for merging high-res streams and mp3 extraction) is found
-  on your PATH, with `ffmpeg-static` as a bundled fallback.
-- The UI is [Ink](https://github.com/vadimdemedes/ink) — React for the
-  terminal.
+### sildirgec ne yapmaz
 
-## Development
+sildirgec yalnızca **görünür** logoyu/yazıyı kaldırır. Görünmez SynthID filigranına ve dosyadaki C2PA / "yapay zekâ ile üretildi" bilgisine dokunmaz. Bunlar bir içeriğin yapay zekâ ürünü olduğunu gösteren işaretlerdir ve korunur.
+
+### Geliştirme
 
 ```sh
 npm install
-npm run build        # bundle to dist/ with tsup
-npm run dev          # rebuild on change
-node dist/cli.js <url>
+npm run build        # dist/ klasörüne derle
+npm run dev          # değişiklikte yeniden derle
+npm test
 npm run typecheck
+node dist/cli.js
 ```
 
-To try it as a global command without publishing: `npm link`, then run
-`yoinks` anywhere.
+Yayınlamadan komut olarak denemek için `npm link`, ardından her yerde `doing`.
 
-## Roadmap
+### Yol haritası
 
-- [ ] `--best` / `--mp3` flags to skip the picker (scriptable mode)
-- [ ] `-o <dir>` to choose the output folder
-- [ ] Playlist / thread-with-multiple-videos support
-- [ ] Clipboard detection: launch bare and auto-suggest the url you copied
-- [ ] Self-update for the bundled yt-dlp binary (`yt-dlp -U`)
-- [x] Publish to npm (`npm i -g yoinks` / `npx yoinks`)
-- [ ] `curl yoinks.sh | sh` installer
+- [x] `--best` / `--mp3` ile format seçimini atlama
+- [x] `-o <klasör>` ile çıktı klasörü seçme
+- [x] Oynatma listesi / çok videolu gönderi desteği
+- [x] Panodaki linki algılayıp önerme
+- [x] Paketle gelen yt-dlp'nin kendini güncellemesi (`--update` ve otomatik)
+- [x] `curl … | sh` / `irm … | iex` kurulum betikleri
+- [x] Türkçe / İngilizce arayüz
+- [x] döndürgec: mp4 → mp3
+- [x] sildirgec: görünür Gemini / Veo / NotebookLM filigranı
+- [ ] npm'de yayınlama
+- [ ] döndürgec'e başka formatlar (wav, m4a, gif)
+- [ ] Toplu işleme (bir klasörü tek seferde dönüştürme/temizleme)
 
-## A note on fair use
+### Adil kullanım
 
-yoinks is a personal-archiving tool. Downloading content may violate a
-platform's terms of service — only download what you have the right to
-keep, and be excellent to creators.
+doing kişisel arşiv için yapılmış bir araçtır. İçerik indirmek bir platformun kullanım koşullarına aykırı olabilir. Yalnızca saklama hakkın olan içeriği indir ve filigranını yalnızca sana ait içerikten kaldır. İçerik üreticilerine saygılı ol.
+
+---
+
+## English
+
+| Tab | What it does |
+|---|---|
+| **indirgec** | Downloads video from YouTube, X/Twitter, Instagram, Threads, TikTok and 1,800+ other sites. Pick a resolution or grab just the mp3. Playlists work too. |
+| **döndürgec** | Converts an mp4 (or any video) on your machine to mp3. |
+| **sildirgec** | Removes the **visible** watermark from your own Gemini images and Veo / NotebookLM videos. |
+
+The interface is Turkish and English; it follows your system language by default.
+
+### Install
+
+Requires Node.js 18+. Everything else (yt-dlp, ffmpeg, the watermark engine) is fetched or bundled automatically.
+
+```sh
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/xkudcobi/doing/main/install.sh | sh
+
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
+
+# or straight from npm
+npm install -g github:xkudcobi/doing
+```
+
+### Usage
+
+```sh
+doing                                   # open the app
+doing https://youtu.be/dQw4w9WgXcQ      # jump straight to the format picker
+doing --mp3 https://youtu.be/…          # mp3, no questions asked
+doing --best https://youtu.be/…         # highest resolution, no questions asked
+doing -o ~/Videos https://x.com/…       # save somewhere else
+doing --lang tr                         # Turkish interface
+doing --update                          # update yt-dlp and the watermark engine
+```
+
+**Keys:** `⇧⇥` switch tab · `↑↓` choose · `↵` go · `esc` back/cancel · `^l` language · `^t` theme · `^c` quit.
+Mouse works too: tabs, buttons, the picker and the footer hints are clickable; clicking the logo takes you home.
+
+**döndürgec / sildirgec:** drag a file onto the terminal window (its path is pasted and the job starts) or type its full path.
+Output goes to `~/Downloads` by default. Existing files are never overwritten — you get `name (2).mp3` instead.
+
+### How it works
+
+- **indirgec** runs [yt-dlp](https://github.com/yt-dlp/yt-dlp). If it isn't installed, the standalone binary is fetched to `~/.doing/bin` on first run and self-updates every two weeks.
+- **döndürgec** runs ffmpeg — yours if it's on PATH, otherwise the bundled `ffmpeg-static` copy.
+- **sildirgec** runs the [wmr](https://github.com/froggeric/gemini-watermark-and-synthid-remover) engine, fetched to `~/.doing/bin` on first use (~70 MB). For images it removes the mark exactly by inverting the alpha blend. Builds exist for Windows x64, macOS, and Linux x64.
+- The UI is [Ink](https://github.com/vadimdemedes/ink) — React for the terminal.
+
+### What sildirgec does not do
+
+sildirgec only removes the **visible** logo/wordmark. It leaves the invisible SynthID watermark and any C2PA / "made with AI" metadata in the file untouched — those mark content as AI-generated and are kept intact.
+
+### Development
+
+```sh
+npm install
+npm run build        # bundle to dist/
+npm run dev          # rebuild on change
+npm test
+npm run typecheck
+node dist/cli.js
+```
+
+To try it as a global command without publishing: `npm link`, then run `doing` anywhere.
+
+### Fair use
+
+doing is a personal-archiving tool. Downloading content may break a platform's terms of service — only download what you have the right to keep, only remove watermarks from content that's yours, and be kind to creators.
 
 ## License
 

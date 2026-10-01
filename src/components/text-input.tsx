@@ -91,7 +91,8 @@ export function TextInput({
       return
     }
     if (key.tab) {
-      onTab?.()
+      // ⇧⇥ switches tabs at the app level
+      if (!key.shift) onTab?.()
       return
     }
     if (key.pageUp || key.pageDown) return
