@@ -1,4 +1,5 @@
 import React, {createContext, type ReactNode, useContext} from 'react'
+import {execFileSync} from 'node:child_process'
 
 export const LANGS = ['tr', 'en'] as const
 export type Lang = (typeof LANGS)[number]
@@ -190,12 +191,33 @@ export function nextLang(lang: Lang): Lang {
 
 /** Turkish when the system locale is Turkish, English otherwise. */
 export function detectLang(env: NodeJS.ProcessEnv = process.env): Lang {
+  // On Windows LANG is usually left behind by Git & co. (en_US) and says
+  // nothing about the user, and node's ICU often reports en-US regardless —
+  // the user's real region lives in the registry, so it wins there
+  if (process.platform === 'win32' && env === process.env) {
+    const fromRegistry = windowsLocale()
+    if (fromRegistry) return fromRegistry.toLowerCase().startsWith('tr') ? 'tr' : 'en'
+  }
   const fromEnv = env.LC_ALL || env.LC_MESSAGES || env.LANG || ''
   if (fromEnv) return fromEnv.toLowerCase().startsWith('tr') ? 'tr' : 'en'
   try {
     return Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith('tr') ? 'tr' : 'en'
   } catch {
     return 'en'
+  }
+}
+
+function windowsLocale(): string | undefined {
+  try {
+    const output = execFileSync('reg', ['query', 'HKCU\\Control Panel\\International', '/v', 'LocaleName'], {
+      encoding: 'utf8',
+      timeout: 1000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      windowsHide: true,
+    })
+    return /LocaleName\s+REG_SZ\s+(\S+)/.exec(output)?.[1]
+  } catch {
+    return undefined
   }
 }
 

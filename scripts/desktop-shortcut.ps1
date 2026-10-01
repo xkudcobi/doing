@@ -19,7 +19,7 @@ $shell = New-Object -ComObject WScript.Shell
 $link = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'doing.lnk'))
 if (Test-Path $wt) {
   $link.TargetPath = $wt
-  $link.Arguments = "--title doing -d `"$env:USERPROFILE`" cmd /c doing"
+  $link.Arguments = "--title doing --suppressApplicationTitle -d `"$env:USERPROFILE`" cmd /c doing"
 } else {
   $link.TargetPath = Join-Path $env:SystemRoot 'System32\cmd.exe'
   $link.Arguments = '/c doing'

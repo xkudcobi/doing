@@ -213,6 +213,7 @@ function TabBar({ active, locked }) {
 
 // src/i18n.ts
 import React4, { createContext as createContext2, useContext as useContext2 } from "react";
+import { execFileSync } from "child_process";
 var LANGS = ["tr", "en"];
 var en = {
   tagline: "download it. convert it. clean it. done.",
@@ -390,12 +391,29 @@ function nextLang(lang2) {
   return LANGS[(LANGS.indexOf(lang2) + 1) % LANGS.length];
 }
 function detectLang(env = process.env) {
+  if (process.platform === "win32" && env === process.env) {
+    const fromRegistry = windowsLocale();
+    if (fromRegistry) return fromRegistry.toLowerCase().startsWith("tr") ? "tr" : "en";
+  }
   const fromEnv = env.LC_ALL || env.LC_MESSAGES || env.LANG || "";
   if (fromEnv) return fromEnv.toLowerCase().startsWith("tr") ? "tr" : "en";
   try {
     return Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith("tr") ? "tr" : "en";
   } catch {
     return "en";
+  }
+}
+function windowsLocale() {
+  try {
+    const output = execFileSync("reg", ["query", "HKCU\\Control Panel\\International", "/v", "LocaleName"], {
+      encoding: "utf8",
+      timeout: 1e3,
+      stdio: ["ignore", "pipe", "ignore"],
+      windowsHide: true
+    });
+    return /LocaleName\s+REG_SZ\s+(\S+)/.exec(output)?.[1];
+  } catch {
+    return void 0;
   }
 }
 var LangContext = createContext2(en);
@@ -2071,7 +2089,7 @@ function parseArgs(args2) {
 }
 
 // src/lib/clipboard.ts
-import { execFileSync } from "child_process";
+import { execFileSync as execFileSync2 } from "child_process";
 var COMMANDS = process.platform === "darwin" ? [["pbpaste", []]] : process.platform === "win32" ? [["powershell", ["-NoProfile", "-Command", "Get-Clipboard"]]] : [
   ["wl-paste", ["--no-newline"]],
   ["xclip", ["-selection", "clipboard", "-o"]],
@@ -2080,7 +2098,7 @@ var COMMANDS = process.platform === "darwin" ? [["pbpaste", []]] : process.platf
 function readClipboard() {
   for (const [command, args2] of COMMANDS) {
     try {
-      return execFileSync(command, args2, { encoding: "utf8", timeout: 500, stdio: ["ignore", "pipe", "ignore"] });
+      return execFileSync2(command, args2, { encoding: "utf8", timeout: 500, stdio: ["ignore", "pipe", "ignore"] });
     } catch {
     }
   }
