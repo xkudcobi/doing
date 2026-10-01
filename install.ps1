@@ -1,4 +1,4 @@
-# doing installer — irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
+﻿# doing installer — irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
 $ErrorActionPreference = 'Stop'
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {

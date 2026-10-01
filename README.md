@@ -1,5 +1,7 @@
 # doing
 
+<img src="assets/icon.png" alt="doing" width="96">
+
 ```
 █▀▄ █▀█ ▀█▀ █▄ █ █▀▀▀
 █ ▓ █ ▓  ▓  █ ▀▓ █ ▀▓
@@ -36,6 +38,8 @@ irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
 # ya da doğrudan npm ile
 npm install -g github:xkudcobi/doing
 ```
+
+**Windows masaüstü kısayolu (ikonlu):** repoyu indirdiysen `powershell -ExecutionPolicy Bypass -File scriptsdesktop-shortcut.ps1`
 
 ### Kullanım
 
@@ -124,6 +128,8 @@ irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
 # or straight from npm
 npm install -g github:xkudcobi/doing
 ```
+
+**Windows desktop shortcut (with icon):** from a clone, run `powershell -ExecutionPolicy Bypass -File scriptsdesktop-shortcut.ps1`
 
 ### Usage
 
