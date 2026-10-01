@@ -14,6 +14,6 @@ if [ "$major" -lt 18 ]; then
 fi
 
 echo "installing doing…"
-npm install -g github:xkudcobi/doing
+npm install -g https://github.com/xkudcobi/doing/archive/refs/heads/main.tar.gz
 echo
 echo "done — run: doing"

@@ -3,7 +3,7 @@
 $ErrorActionPreference = 'Stop'
 
 if (-not (Get-Command doing -ErrorAction SilentlyContinue)) {
-  Write-Host 'doing is not installed yet — run "npm install -g github:xkudcobi/doing" (or "npm link" in this repo) first.'
+  Write-Host 'doing is not installed yet — run "npm install -g https://github.com/xkudcobi/doing/archive/refs/heads/main.tar.gz" (or "npm link" in this repo) first.'
   exit 1
 }
 

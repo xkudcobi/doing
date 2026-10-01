@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/xkudcobi/doing/main/install.sh | sh
 irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
 
 # ya da doğrudan npm ile
-npm install -g github:xkudcobi/doing
+npm install -g https://github.com/xkudcobi/doing/archive/refs/heads/main.tar.gz
 ```
 
 **Windows masaüstü kısayolu (ikonlu):** repoyu indirdiysen `powershell -ExecutionPolicy Bypass -File scripts/desktop-shortcut.ps1`
@@ -126,7 +126,7 @@ curl -fsSL https://raw.githubusercontent.com/xkudcobi/doing/main/install.sh | sh
 irm https://raw.githubusercontent.com/xkudcobi/doing/main/install.ps1 | iex
 
 # or straight from npm
-npm install -g github:xkudcobi/doing
+npm install -g https://github.com/xkudcobi/doing/archive/refs/heads/main.tar.gz
 ```
 
 **Windows desktop shortcut (with icon):** from a clone, run `powershell -ExecutionPolicy Bypass -File scripts/desktop-shortcut.ps1`
