@@ -29,16 +29,15 @@ export function parseProgressSeconds(line: string): number | undefined {
   return match ? Number(match[1]) / 1_000_000 : undefined
 }
 
-export async function convertToMp3(
-  opts: {ffmpeg: string; input: string; outDir: string},
+/** Run ffmpeg from `input` to `output` with progress; removes a half-written output on failure or cancel. */
+export async function runFfmpeg(
+  opts: {ffmpeg: string; input: string; output: string; args: string[]},
   onProgress: (fraction: number) => void,
   signal?: AbortSignal,
 ): Promise<string> {
-  await fs.mkdir(opts.outDir, {recursive: true})
-  const output = uniquePath(opts.outDir, path.parse(opts.input).name, '.mp3')
   let duration: number | undefined
-  const args = ['-hide_banner', '-nostdin', '-y', '-i', opts.input, '-vn', '-c:a', 'libmp3lame', '-q:a', '0']
-  args.push('-progress', 'pipe:1', '-nostats', output)
+  const args = ['-hide_banner', '-nostdin', '-y', '-i', opts.input, ...opts.args]
+  args.push('-progress', 'pipe:1', '-nostats', opts.output)
 
   const {code, output: log} = await runWithLines(
     opts.ffmpeg,
@@ -55,7 +54,7 @@ export async function convertToMp3(
   })
 
   if (signal?.aborted || code !== 0) {
-    await fs.rm(output, {force: true, maxRetries: 10, retryDelay: 200})
+    await fs.rm(opts.output, {force: true, maxRetries: 10, retryDelay: 200})
     if (signal?.aborted) throw new Error('cancelled')
     const reason = log
       .split(/\r?\n/)
@@ -64,5 +63,15 @@ export async function convertToMp3(
       .at(-1)
     throw new Error(reason || `ffmpeg exited with code ${code}`)
   }
-  return output
+  return opts.output
+}
+
+export async function convertToMp3(
+  opts: {ffmpeg: string; input: string; outDir: string},
+  onProgress: (fraction: number) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  await fs.mkdir(opts.outDir, {recursive: true})
+  const output = uniquePath(opts.outDir, path.parse(opts.input).name, '.mp3')
+  return runFfmpeg({...opts, output, args: ['-vn', '-c:a', 'libmp3lame', '-q:a', '0']}, onProgress, signal)
 }

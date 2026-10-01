@@ -2,7 +2,7 @@ import React from 'react'
 import {Text} from 'ink'
 import {useTheme} from '../theme.js'
 
-export const TABS = ['download', 'convert', 'clean'] as const
+export const TABS = ['download', 'convert', 'clean', 'mangle'] as const
 export type TabId = (typeof TABS)[number]
 
 // tool names stay the same in both languages — they're the product names
@@ -10,6 +10,7 @@ export const TAB_LABELS: Record<TabId, string> = {
   download: 'indirgec',
   convert: 'döndürgec',
   clean: 'sildirgec',
+  mangle: 'bozdurgac',
 }
 
 export const nextTab = (tab: TabId, step = 1): TabId =>

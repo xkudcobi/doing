@@ -11,6 +11,7 @@ const en = {
     download: 'youtube · x · instagram · threads · tiktok · +1800 more',
     convert: 'mp4 → mp3 · any video your ffmpeg can read',
     clean: 'visible gemini · veo · notebooklm watermarks',
+    mangle: 'the shitpost machine · wrecks videos on purpose',
   },
   hint: {
     go: 'go',
@@ -86,6 +87,22 @@ const en = {
     noneFound: 'No visible watermark found in this file — nothing was changed.',
     unsupportedPlatform: (platform: string) => `The watermark engine has no build for ${platform}.`,
   },
+  mangle: {
+    button: 'wreck it',
+    inputTitle: 'Paste a link or drop a video',
+    placeholder: 'https://youtube.com/watch?v=… or a file path',
+    description:
+      'Deliberately ruins a video for comedy: chunky deep-fried pixels, and/or crackly, blown-out, bass-boosted audio where nobody can tell what is being said. Paste a link (it downloads first) or pick a video from your computer.',
+    unsupported: 'pick a video (mp4, mov, mkv, webm…) or an audio file, or paste a link',
+    panelTitle: 'How bad?',
+    modeVideo: 'wreck the picture · pixel mush',
+    modeBoth: 'wreck picture + sound · full disaster',
+    modeAudio: 'wreck the sound only · blown-out bass',
+    modeMp3: 'wreck the sound · save as mp3',
+    downloading: 'downloading the video first…',
+    wrecking: 'wrecking it…',
+    pickerTitle: 'doing · bozdurgac — pick a video to wreck',
+  },
   done: {
     title: '✓ done!',
     find: 'find your file in:',
@@ -110,6 +127,7 @@ const tr: Strings = {
     download: 'youtube · x · instagram · threads · tiktok · +1800 site',
     convert: 'mp4 → mp3 · ffmpeg’in açabildiği her video',
     clean: 'görünür gemini · veo · notebooklm filigranları',
+    mangle: 'shitpost makinesi · videoyu bilerek berbat eder',
   },
   hint: {
     go: 'başlat',
@@ -184,6 +202,22 @@ const tr: Strings = {
     removing: 'filigran siliniyor…',
     noneFound: 'Bu dosyada görünür filigran bulunamadı — hiçbir şey değiştirilmedi.',
     unsupportedPlatform: (platform: string) => `Filigran motorunun ${platform} için sürümü yok.`,
+  },
+  mangle: {
+    button: 'boz',
+    inputTitle: 'Bir link yapıştır ya da video sürükle',
+    placeholder: 'https://youtube.com/watch?v=… ya da dosya yolu',
+    description:
+      'Videoyu bilerek berbat eder: görüntüyü piksel piksel, kızarmış renklere çevirir; sesi patlak, cızırtılı, basslı ve ne dediği anlaşılmayan bir hale getirir. Link yapıştır (önce indirilir) ya da bilgisayarından bir video seç.',
+    unsupported: 'bir video (mp4, mov, mkv, webm…) ya da ses dosyası seç, veya link yapıştır',
+    panelTitle: 'Ne kadar bozulsun?',
+    modeVideo: 'görüntüyü boz · piksel piksel',
+    modeBoth: 'görüntü + ses boz · tam felaket',
+    modeAudio: 'sadece sesi boz · patlak bass',
+    modeMp3: 'sesi boz · mp3 olarak al',
+    downloading: 'önce video indiriliyor…',
+    wrecking: 'berbat ediliyor…',
+    pickerTitle: 'doing · bozdurgac — bozulacak videoyu seç',
   },
   done: {
     title: '✓ bitti!',

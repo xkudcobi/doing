@@ -21,6 +21,7 @@
 | **indirgec** | YouTube, X/Twitter, Instagram, Threads, TikTok ve 1800+ siteden video indirir. Çözünürlük seç ya da sadece mp3 al. Oynatma listelerini de indirir. |
 | **döndürgec** | Bilgisayarındaki mp4'ü (ya da herhangi bir videoyu) mp3'e dönüştürür. |
 | **sildirgec** | Kendi ürettiğin Gemini görsellerindeki ve Veo / NotebookLM videolarındaki **görünür** filigranı siler. |
+| **bozdurgac** | Shitpost makinesi: videoyu bilerek berbat eder. Görüntüyü piksel piksel yapar, sesi patlak, basslı ve anlaşılmaz hale getirir. Link ya da bilgisayardaki video; 4 mod: görüntü · görüntü + ses · sadece ses · ses → mp3. |
 
 Arayüz Türkçe ve İngilizce; varsayılan olarak sistem dilini kullanır.
 
@@ -95,6 +96,7 @@ Yayınlamadan komut olarak denemek için `npm link`, ardından her yerde `doing`
 - [x] Türkçe / İngilizce arayüz
 - [x] döndürgec: mp4 → mp3
 - [x] sildirgec: görünür Gemini / Veo / NotebookLM filigranı
+- [x] bozdurgac: videoyu bilerek bozma (piksel + patlak ses)
 - [ ] npm'de yayınlama
 - [ ] döndürgec'e başka formatlar (wav, m4a, gif)
 - [ ] Toplu işleme (bir klasörü tek seferde dönüştürme/temizleme)
@@ -112,6 +114,7 @@ doing kişisel arşiv için yapılmış bir araçtır. İçerik indirmek bir pla
 | **indirgec** | Downloads video from YouTube, X/Twitter, Instagram, Threads, TikTok and 1,800+ other sites. Pick a resolution or grab just the mp3. Playlists work too. |
 | **döndürgec** | Converts an mp4 (or any video) on your machine to mp3. |
 | **sildirgec** | Removes the **visible** watermark from your own Gemini images and Veo / NotebookLM videos. |
+| **bozdurgac** | The shitpost machine: wrecks a video on purpose — chunky deep-fried pixels and/or blown-out, bass-boosted, unintelligible audio. From a link or a file; 4 modes: picture · picture + sound · sound only · sound → mp3. |
 
 The interface is Turkish and English; it follows your system language by default.
 

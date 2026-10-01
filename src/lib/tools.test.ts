@@ -53,3 +53,17 @@ test('both languages carry every string and the locale picks turkish', () => {
   assert.equal(detectLang({LANG: 'en_US.UTF-8'}), 'en')
   assert.equal(nextLang('tr'), 'en')
 })
+
+test('bozdurgac modes wreck exactly what they promise', async () => {
+  const {mangleArgs, EARRAPE_FILTER, PIXEL_FILTER} = await import('./mangle.js')
+  const has = (args: string[], filter: string) => args.includes(filter)
+  const video = mangleArgs('video').args
+  assert.ok(has(video, PIXEL_FILTER) && !has(video, EARRAPE_FILTER))
+  const both = mangleArgs('both').args
+  assert.ok(has(both, PIXEL_FILTER) && has(both, EARRAPE_FILTER))
+  const audio = mangleArgs('audio').args
+  assert.ok(!has(audio, PIXEL_FILTER) && has(audio, EARRAPE_FILTER))
+  const mp3 = mangleArgs('mp3')
+  assert.equal(mp3.ext, '.mp3')
+  assert.ok(mp3.args.includes('-vn') && has(mp3.args, EARRAPE_FILTER))
+})

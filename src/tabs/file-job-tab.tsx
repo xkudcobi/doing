@@ -7,7 +7,8 @@ import {Panel} from '../components/panel.js'
 import {TextInput} from '../components/text-input.js'
 import {useStrings} from '../i18n.js'
 import type {ClickTarget} from '../lib/click-map.js'
-import {truncate} from '../lib/format.js'
+import {truncate, wrapText} from '../lib/format.js'
+import {isProbablyUrl} from '../lib/platforms.js'
 import {NoPickerAvailable, pickFile} from '../lib/file-picker.js'
 import {isExistingFile, normalizeDroppedPath} from '../lib/paths.js'
 import {useTheme} from '../theme.js'
@@ -32,6 +33,12 @@ export type JobContext = {
 export type FileJob = {
   button: string
   placeholder: string
+  /** frame title of the input; defaults to the drop-a-file prompt */
+  inputTitle?: string
+  /** a few sentences shown above the input, explaining what the tool does */
+  description?: string
+  /** also take a link — run() then gets the url as `file` */
+  acceptsUrl?: boolean
   /** title of the OS file dialog (^o) */
   pickerTitle: string
   /** what the file dialog offers, with the dot */
@@ -86,7 +93,7 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
           outDir: shell.outDir,
           signal: controller.signal,
           onProgress: fraction =>
-            setPhase(prev => (prev.name === 'running' ? {...prev, fraction, status: job.running} : prev)),
+            setPhase(prev => (prev.name === 'running' ? {...prev, fraction} : prev)),
           onStatus: status => setPhase(prev => (prev.name === 'running' ? {...prev, status} : prev)),
         })
         if (controller.signal.aborted) return
@@ -100,6 +107,18 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
   }
 
   const submit = (value: string) => {
+    if (job.acceptsUrl && isProbablyUrl(value.trim())) {
+      const url = value.trim()
+      setInput(url)
+      const options = job.options?.(url)
+      if (options && options.length > 0) {
+        highlightRef.current = 0
+        setPhase({name: 'picking', file: url, options})
+      } else {
+        start(url)
+      }
+      return
+    }
     const file = normalizeDroppedPath(value)
     if (!file || !isExistingFile(file)) {
       setPhase({name: 'input', warning: t.file.notFound})
@@ -173,13 +192,23 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
   registerClicks(shell, targets, hints)
   shell.home.current = busy ? cancelRun : phase.name !== 'input' ? resetToInput : undefined
 
-  const fileName = (file: string) => truncate(path.basename(file), Math.max(10, boxWidth - 8))
+  const fileName = (file: string) =>
+    truncate(isProbablyUrl(file) ? file : path.basename(file), Math.max(10, boxWidth - 8))
 
   return (
     <>
       {phase.name === 'input' && (
         <Box flexDirection="column" alignItems="center">
-          <FramedInput title={t.file.inputTitle} width={boxWidth} button={job.button}>
+          {job.description ? (
+            <Box flexDirection="column" alignItems="center" marginBottom={1}>
+              {wrapText(job.description, Math.max(20, boxWidth)).map((line, index) => (
+                <Text key={index} color={theme.gray} dimColor={theme.dimSecondary}>
+                  {line}
+                </Text>
+              ))}
+            </Box>
+          ) : null}
+          <FramedInput title={job.inputTitle ?? t.file.inputTitle} width={boxWidth} button={job.button}>
             <TextInput
               value={input}
               onChange={setInput}
@@ -187,7 +216,9 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
               placeholder={job.placeholder}
               width={boxWidth - 6}
               // dropping a file onto the terminal pastes its path — go right away
-              submitOnPaste={value => isExistingFile(normalizeDroppedPath(value))}
+              submitOnPaste={value =>
+                (job.acceptsUrl === true && isProbablyUrl(value)) || isExistingFile(normalizeDroppedPath(value))
+              }
             />
           </FramedInput>
           <Text color={theme.gray} dimColor={theme.dimSecondary}>

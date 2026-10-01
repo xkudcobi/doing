@@ -25,6 +25,7 @@ const HELP: Record<Lang, string> = {
     indirgec   download videos from YouTube, X, Instagram, TikTok & 1800+ sites
     döndürgec  convert mp4 (or any video) to mp3
     sildirgec  remove visible Gemini / Veo / NotebookLM watermarks
+    bozdurgac  wreck a video on purpose — pixel mush and blown-out bass
 
   Usage
     $ doing [url]
@@ -52,6 +53,7 @@ const HELP: Record<Lang, string> = {
     indirgec   YouTube, X, Instagram, TikTok ve 1800+ siteden video indir
     döndürgec  mp4'ü (ya da herhangi bir videoyu) mp3'e dönüştür
     sildirgec  görünür Gemini / Veo / NotebookLM filigranlarını sil
+    bozdurgac  videoyu bilerek boz — piksel piksel görüntü, patlak bass
 
   Kullanım
     $ doing [link]

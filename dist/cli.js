@@ -2,12 +2,12 @@
 
 // src/cli.tsx
 import { createRequire } from "module";
-import path9 from "path";
+import path11 from "path";
 import { render } from "ink";
 
 // src/app.tsx
 import { useCallback as useCallback3, useMemo as useMemo2, useRef as useRef5, useState as useState6 } from "react";
-import os7 from "os";
+import os8 from "os";
 import { Text as Text11, useInput as useInput4 } from "ink";
 
 // src/components/fullscreen.tsx
@@ -188,11 +188,12 @@ function Logo() {
 // src/components/tab-bar.tsx
 import { Text as Text2 } from "ink";
 import { jsx as jsx3, jsxs } from "react/jsx-runtime";
-var TABS = ["download", "convert", "clean"];
+var TABS = ["download", "convert", "clean", "mangle"];
 var TAB_LABELS = {
   download: "indirgec",
   convert: "d\xF6nd\xFCrgec",
-  clean: "sildirgec"
+  clean: "sildirgec",
+  mangle: "bozdurgac"
 };
 var nextTab = (tab, step = 1) => TABS[(TABS.indexOf(tab) + step + TABS.length) % TABS.length];
 var tabText = (tab, active) => active ? `[ ${TAB_LABELS[tab]} ]` : `  ${TAB_LABELS[tab]}  `;
@@ -222,7 +223,8 @@ var en = {
   subtitle: {
     download: "youtube \xB7 x \xB7 instagram \xB7 threads \xB7 tiktok \xB7 +1800 more",
     convert: "mp4 \u2192 mp3 \xB7 any video your ffmpeg can read",
-    clean: "visible gemini \xB7 veo \xB7 notebooklm watermarks"
+    clean: "visible gemini \xB7 veo \xB7 notebooklm watermarks",
+    mangle: "the shitpost machine \xB7 wrecks videos on purpose"
   },
   hint: {
     go: "go",
@@ -298,6 +300,21 @@ var en = {
     noneFound: "No visible watermark found in this file \u2014 nothing was changed.",
     unsupportedPlatform: (platform) => `The watermark engine has no build for ${platform}.`
   },
+  mangle: {
+    button: "wreck it",
+    inputTitle: "Paste a link or drop a video",
+    placeholder: "https://youtube.com/watch?v=\u2026 or a file path",
+    description: "Deliberately ruins a video for comedy: chunky deep-fried pixels, and/or crackly, blown-out, bass-boosted audio where nobody can tell what is being said. Paste a link (it downloads first) or pick a video from your computer.",
+    unsupported: "pick a video (mp4, mov, mkv, webm\u2026) or an audio file, or paste a link",
+    panelTitle: "How bad?",
+    modeVideo: "wreck the picture \xB7 pixel mush",
+    modeBoth: "wreck picture + sound \xB7 full disaster",
+    modeAudio: "wreck the sound only \xB7 blown-out bass",
+    modeMp3: "wreck the sound \xB7 save as mp3",
+    downloading: "downloading the video first\u2026",
+    wrecking: "wrecking it\u2026",
+    pickerTitle: "doing \xB7 bozdurgac \u2014 pick a video to wreck"
+  },
   done: {
     title: "\u2713 done!",
     find: "find your file in:",
@@ -317,7 +334,8 @@ var tr = {
   subtitle: {
     download: "youtube \xB7 x \xB7 instagram \xB7 threads \xB7 tiktok \xB7 +1800 site",
     convert: "mp4 \u2192 mp3 \xB7 ffmpeg\u2019in a\xE7abildi\u011Fi her video",
-    clean: "g\xF6r\xFCn\xFCr gemini \xB7 veo \xB7 notebooklm filigranlar\u0131"
+    clean: "g\xF6r\xFCn\xFCr gemini \xB7 veo \xB7 notebooklm filigranlar\u0131",
+    mangle: "shitpost makinesi \xB7 videoyu bilerek berbat eder"
   },
   hint: {
     go: "ba\u015Flat",
@@ -392,6 +410,21 @@ var tr = {
     removing: "filigran siliniyor\u2026",
     noneFound: "Bu dosyada g\xF6r\xFCn\xFCr filigran bulunamad\u0131 \u2014 hi\xE7bir \u015Fey de\u011Fi\u015Ftirilmedi.",
     unsupportedPlatform: (platform) => `Filigran motorunun ${platform} i\xE7in s\xFCr\xFCm\xFC yok.`
+  },
+  mangle: {
+    button: "boz",
+    inputTitle: "Bir link yap\u0131\u015Ft\u0131r ya da video s\xFCr\xFCkle",
+    placeholder: "https://youtube.com/watch?v=\u2026 ya da dosya yolu",
+    description: "Videoyu bilerek berbat eder: g\xF6r\xFCnt\xFCy\xFC piksel piksel, k\u0131zarm\u0131\u015F renklere \xE7evirir; sesi patlak, c\u0131z\u0131rt\u0131l\u0131, bassl\u0131 ve ne dedi\u011Fi anla\u015F\u0131lmayan bir hale getirir. Link yap\u0131\u015Ft\u0131r (\xF6nce indirilir) ya da bilgisayar\u0131ndan bir video se\xE7.",
+    unsupported: "bir video (mp4, mov, mkv, webm\u2026) ya da ses dosyas\u0131 se\xE7, veya link yap\u0131\u015Ft\u0131r",
+    panelTitle: "Ne kadar bozulsun?",
+    modeVideo: "g\xF6r\xFCnt\xFCy\xFC boz \xB7 piksel piksel",
+    modeBoth: "g\xF6r\xFCnt\xFC + ses boz \xB7 tam felaket",
+    modeAudio: "sadece sesi boz \xB7 patlak bass",
+    modeMp3: "sesi boz \xB7 mp3 olarak al",
+    downloading: "\xF6nce video indiriliyor\u2026",
+    wrecking: "berbat ediliyor\u2026",
+    pickerTitle: "doing \xB7 bozdurgac \u2014 bozulacak videoyu se\xE7"
   },
   done: {
     title: "\u2713 bitti!",
@@ -1140,12 +1173,10 @@ function parseProgressSeconds(line) {
   const match = /^out_time_(?:us|ms)=(\d+)$/.exec(line);
   return match ? Number(match[1]) / 1e6 : void 0;
 }
-async function convertToMp3(opts, onProgress, signal) {
-  await fs5.mkdir(opts.outDir, { recursive: true });
-  const output = uniquePath(opts.outDir, path4.parse(opts.input).name, ".mp3");
+async function runFfmpeg(opts, onProgress, signal) {
   let duration;
-  const args2 = ["-hide_banner", "-nostdin", "-y", "-i", opts.input, "-vn", "-c:a", "libmp3lame", "-q:a", "0"];
-  args2.push("-progress", "pipe:1", "-nostats", output);
+  const args2 = ["-hide_banner", "-nostdin", "-y", "-i", opts.input, ...opts.args];
+  args2.push("-progress", "pipe:1", "-nostats", opts.output);
   const { code, output: log } = await runWithLines(
     opts.ffmpeg,
     args2,
@@ -1160,12 +1191,17 @@ async function convertToMp3(opts, onProgress, signal) {
     throw error;
   });
   if (signal?.aborted || code !== 0) {
-    await fs5.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
+    await fs5.rm(opts.output, { force: true, maxRetries: 10, retryDelay: 200 });
     if (signal?.aborted) throw new Error("cancelled");
     const reason = log.split(/\r?\n/).map((l) => l.trim()).filter((l) => /error|invalid|no such|does not contain/i.test(l)).at(-1);
     throw new Error(reason || `ffmpeg exited with code ${code}`);
   }
-  return output;
+  return opts.output;
+}
+async function convertToMp3(opts, onProgress, signal) {
+  await fs5.mkdir(opts.outDir, { recursive: true });
+  const output = uniquePath(opts.outDir, path4.parse(opts.input).name, ".mp3");
+  return runFfmpeg({ ...opts, output, args: ["-vn", "-c:a", "libmp3lame", "-q:a", "0"] }, onProgress, signal);
 }
 
 // src/lib/ytdlp.ts
@@ -1857,7 +1893,7 @@ function FileJobTab({ job, onOutcome }) {
           option,
           outDir: shell.outDir,
           signal: controller.signal,
-          onProgress: (fraction) => setPhase((prev) => prev.name === "running" ? { ...prev, fraction, status: job.running } : prev),
+          onProgress: (fraction) => setPhase((prev) => prev.name === "running" ? { ...prev, fraction } : prev),
           onStatus: (status) => setPhase((prev) => prev.name === "running" ? { ...prev, status } : prev)
         });
         if (controller.signal.aborted) return;
@@ -1870,6 +1906,18 @@ function FileJobTab({ job, onOutcome }) {
     })();
   };
   const submit = (value) => {
+    if (job.acceptsUrl && isProbablyUrl(value.trim())) {
+      const url = value.trim();
+      setInput(url);
+      const options2 = job.options?.(url);
+      if (options2 && options2.length > 0) {
+        highlightRef.current = 0;
+        setPhase({ name: "picking", file: url, options: options2 });
+      } else {
+        start(url);
+      }
+      return;
+    }
     const file = normalizeDroppedPath(value);
     if (!file || !isExistingFile(file)) {
       setPhase({ name: "input", warning: t.file.notFound });
@@ -1934,10 +1982,11 @@ function FileJobTab({ job, onOutcome }) {
   if (phase.name === "done") targets.push(...doneTargets(t, phase.filepath, false, resetToInput));
   registerClicks(shell, targets, hints);
   shell.home.current = busy ? cancelRun : phase.name !== "input" ? resetToInput : void 0;
-  const fileName = (file) => truncate(path7.basename(file), Math.max(10, boxWidth - 8));
+  const fileName = (file) => truncate(isProbablyUrl(file) ? file : path7.basename(file), Math.max(10, boxWidth - 8));
   return /* @__PURE__ */ jsxs9(Fragment4, { children: [
     phase.name === "input" && /* @__PURE__ */ jsxs9(Box7, { flexDirection: "column", alignItems: "center", children: [
-      /* @__PURE__ */ jsx11(FramedInput, { title: t.file.inputTitle, width: boxWidth, button: job.button, children: /* @__PURE__ */ jsx11(
+      job.description ? /* @__PURE__ */ jsx11(Box7, { flexDirection: "column", alignItems: "center", marginBottom: 1, children: wrapText(job.description, Math.max(20, boxWidth)).map((line, index) => /* @__PURE__ */ jsx11(Text10, { color: theme.gray, dimColor: theme.dimSecondary, children: line }, index)) }) : null,
+      /* @__PURE__ */ jsx11(FramedInput, { title: job.inputTitle ?? t.file.inputTitle, width: boxWidth, button: job.button, children: /* @__PURE__ */ jsx11(
         TextInput,
         {
           value: input,
@@ -1945,7 +1994,7 @@ function FileJobTab({ job, onOutcome }) {
           onSubmit: submit,
           placeholder: job.placeholder,
           width: boxWidth - 6,
-          submitOnPaste: (value) => isExistingFile(normalizeDroppedPath(value))
+          submitOnPaste: (value) => job.acceptsUrl === true && isProbablyUrl(value) || isExistingFile(normalizeDroppedPath(value))
         }
       ) }),
       /* @__PURE__ */ jsx11(Text10, { color: theme.gray, dimColor: theme.dimSecondary, children: phase.warning ? `\u2717 ${phase.warning}` : phase.browsing ? t.file.browsing : t.file.browseHint })
@@ -1975,11 +2024,56 @@ function FileJobTab({ job, onOutcome }) {
   ] });
 }
 
+// src/tabs/tools.ts
+import fs9 from "fs/promises";
+import os7 from "os";
+import path10 from "path";
+
+// src/lib/mangle.ts
+import fs7 from "fs/promises";
+import path8 from "path";
+var PIXEL_FILTER = [
+  "scale=64:-2:flags=area",
+  "eq=saturation=2.6:contrast=1.7:brightness=0.04",
+  "scale=iw*10:ih*10:flags=neighbor",
+  "format=yuv420p"
+].join(",");
+var EARRAPE_FILTER = [
+  "aresample=11025",
+  "acrusher=bits=6:mode=log:aa=1",
+  "bass=g=24:f=90:w=0.7",
+  "volume=16dB",
+  "asoftclip=type=hard",
+  "aresample=44100"
+].join(",");
+var WRECKED_VIDEO = ["-vf", PIXEL_FILTER, "-r", "15", "-c:v", "libx264", "-preset", "veryfast", "-crf", "40"];
+var CLEAN_VIDEO = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p"];
+var WRECKED_AUDIO = ["-af", EARRAPE_FILTER, "-c:a", "aac", "-b:a", "64k"];
+var CLEAN_AUDIO = ["-c:a", "aac", "-b:a", "160k"];
+function mangleArgs(mode) {
+  switch (mode) {
+    case "video":
+      return { args: [...WRECKED_VIDEO, ...CLEAN_AUDIO, "-movflags", "+faststart"], ext: ".mp4" };
+    case "both":
+      return { args: [...WRECKED_VIDEO, ...WRECKED_AUDIO, "-movflags", "+faststart"], ext: ".mp4" };
+    case "audio":
+      return { args: [...CLEAN_VIDEO, ...WRECKED_AUDIO, "-movflags", "+faststart"], ext: ".mp4" };
+    case "mp3":
+      return { args: ["-vn", "-af", EARRAPE_FILTER, "-c:a", "libmp3lame", "-b:a", "64k"], ext: ".mp3" };
+  }
+}
+async function mangle(opts, onProgress, signal) {
+  await fs7.mkdir(opts.outDir, { recursive: true });
+  const { args: args2, ext } = mangleArgs(opts.mode);
+  const output = uniquePath(opts.outDir, `${path8.parse(opts.input).name}-${opts.suffix}`, ext);
+  return runFfmpeg({ ffmpeg: opts.ffmpeg, input: opts.input, output, args: args2 }, onProgress, signal);
+}
+
 // src/lib/wmr.ts
 import { spawn as spawn5 } from "child_process";
-import fs7 from "fs/promises";
+import fs8 from "fs/promises";
 import os6 from "os";
-import path8 from "path";
+import path9 from "path";
 var RELEASE_BASE2 = "https://github.com/froggeric/gemini-watermark-and-synthid-remover/releases/latest/download";
 function wmrAsset(platform = process.platform, arch = process.arch) {
   const pick = (name, ext) => ({ archive: `${name}${ext}`, dir: name });
@@ -1990,10 +2084,10 @@ function wmrAsset(platform = process.platform, arch = process.arch) {
   return void 0;
 }
 function wmrBinary(dir) {
-  return path8.join(BIN_DIR, dir, process.platform === "win32" ? "wmr.exe" : "wmr");
+  return path9.join(BIN_DIR, dir, process.platform === "win32" ? "wmr.exe" : "wmr");
 }
 function extract(archive, into) {
-  const tar = process.platform === "win32" ? path8.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+  const tar = process.platform === "win32" ? path9.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
   return new Promise((resolve, reject) => {
     const child = spawn5(tar, ["-xf", archive, "-C", into], { stdio: "ignore" });
     child.on("error", reject);
@@ -2006,13 +2100,13 @@ async function ensureWmr(messages, onStatus, signal, forceFetch = false) {
   const binary = wmrBinary(asset.dir);
   if (!forceFetch && await commandWorks(binary, ["--version"])) return binary;
   onStatus(messages.fetching);
-  await fs7.mkdir(BIN_DIR, { recursive: true });
-  const archive = path8.join(BIN_DIR, asset.archive);
+  await fs8.mkdir(BIN_DIR, { recursive: true });
+  const archive = path9.join(BIN_DIR, asset.archive);
   await fetchToFile(`${RELEASE_BASE2}/${asset.archive}`, archive, messages.downloadFailed, signal);
-  await fs7.rm(path8.join(BIN_DIR, asset.dir), { recursive: true, force: true });
+  await fs8.rm(path9.join(BIN_DIR, asset.dir), { recursive: true, force: true });
   await extract(archive, BIN_DIR);
-  await fs7.rm(archive, { force: true });
-  if (process.platform !== "win32") await fs7.chmod(binary, 493);
+  await fs8.rm(archive, { force: true });
+  if (process.platform !== "win32") await fs8.chmod(binary, 493);
   return binary;
 }
 function parseWmrProgress(line) {
@@ -2025,8 +2119,8 @@ var isImage = (file) => IMAGE_EXTS.has(extOf(file));
 var NoWatermarkFound = class extends Error {
 };
 async function removeWatermark(opts, onProgress, signal) {
-  await fs7.mkdir(opts.outDir, { recursive: true });
-  const parsed = path8.parse(opts.input);
+  await fs8.mkdir(opts.outDir, { recursive: true });
+  const parsed = path9.parse(opts.input);
   const image = isImage(opts.input);
   const ext = image ? parsed.ext : ".mp4";
   const output = uniquePath(opts.outDir, `${parsed.name}-${opts.suffix}`, ext);
@@ -2034,7 +2128,7 @@ async function removeWatermark(opts, onProgress, signal) {
   try {
     const written = await runWmr({ ...opts, input: stage.input, output: stage.output, image }, onProgress, signal);
     if (written && stage.output !== output) {
-      await fs7.copyFile(stage.output, output);
+      await fs8.copyFile(stage.output, output);
     }
     if (!written) throw new NoWatermarkFound();
     return output;
@@ -2047,23 +2141,23 @@ async function stagePaths(input, output, ext) {
   const none = { input, output, cleanup: async () => {
   } };
   if (process.platform !== "win32" || isAscii(input) && isAscii(output)) return none;
-  const candidates = [os6.tmpdir(), path8.join(process.env.PUBLIC ?? "C:\\Users\\Public", "doing-tmp"), "C:\\ProgramData\\doing"];
+  const candidates = [os6.tmpdir(), path9.join(process.env.PUBLIC ?? "C:\\Users\\Public", "doing-tmp"), "C:\\ProgramData\\doing"];
   for (const base of candidates.filter(isAscii)) {
-    const dir = path8.join(base, `doing-wmr-${process.pid}-${Date.now()}`);
+    const dir = path9.join(base, `doing-wmr-${process.pid}-${Date.now()}`);
     try {
-      await fs7.mkdir(dir, { recursive: true });
+      await fs8.mkdir(dir, { recursive: true });
     } catch {
       continue;
     }
     let stagedInput = input;
     if (!isAscii(input)) {
-      stagedInput = path8.join(dir, `input${path8.extname(input).toLowerCase()}`);
-      await fs7.copyFile(input, stagedInput);
+      stagedInput = path9.join(dir, `input${path9.extname(input).toLowerCase()}`);
+      await fs8.copyFile(input, stagedInput);
     }
     return {
       input: stagedInput,
-      output: isAscii(output) ? output : path8.join(dir, `output${ext}`),
-      cleanup: () => fs7.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+      output: isAscii(output) ? output : path9.join(dir, `output${ext}`),
+      cleanup: () => fs8.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
     };
   }
   return none;
@@ -2091,14 +2185,14 @@ async function runWmr(opts, onProgress, signal) {
     throw error;
   });
   if (signal?.aborted) {
-    await fs7.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
+    await fs8.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
     throw new Error("cancelled");
   }
   if (code !== 0) {
-    await fs7.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
+    await fs8.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
     throw new Error(errorLine || `wmr exited with code ${code}`);
   }
-  return fs7.access(output).then(
+  return fs8.access(output).then(
     () => true,
     () => false
   );
@@ -2166,6 +2260,69 @@ function cleanJob(t, lang2) {
     }
   };
 }
+function mangleJob(t, lang2) {
+  const modes = [
+    { label: t.mangle.modeVideo, value: "video" },
+    { label: t.mangle.modeBoth, value: "both" },
+    { label: t.mangle.modeAudio, value: "audio" },
+    { label: t.mangle.modeMp3, value: "mp3" }
+  ];
+  return {
+    button: t.mangle.button,
+    inputTitle: t.mangle.inputTitle,
+    placeholder: t.mangle.placeholder,
+    description: t.mangle.description,
+    acceptsUrl: true,
+    pickerTitle: t.mangle.pickerTitle,
+    extensions: [...VIDEO_EXTS, ...AUDIO_EXTS],
+    validate: (file) => VIDEO_EXTS.has(extOf(file)) || AUDIO_EXTS.has(extOf(file)) ? void 0 : t.mangle.unsupported,
+    // an audio file has no picture to wreck — only the mp3 mode makes sense
+    options: (file) => AUDIO_EXTS.has(extOf(file)) ? modes.filter((mode) => mode.value === "mp3") : modes,
+    optionsTitle: t.mangle.panelTitle,
+    running: t.mangle.wrecking,
+    run: async ({ file, option, outDir: outDir2, onProgress, onStatus, signal }) => {
+      const ffmpeg = await resolveFfmpeg();
+      if (!ffmpeg) throw new Error(t.convert.noFfmpeg);
+      const mode = option ?? "both";
+      const suffix = lang2 === "tr" ? "bozuk" : "cursed";
+      if (!isProbablyUrl(file)) {
+        onStatus(t.mangle.wrecking);
+        return mangle({ ffmpeg, input: file, outDir: outDir2, mode, suffix }, onProgress, signal);
+      }
+      const scratch = path10.join(os7.tmpdir(), `doing-mangle-${process.pid}-${Date.now()}`);
+      try {
+        onStatus(t.download.warmingUp);
+        const ytdlp = await ensureYtDlp(t, onStatus, signal);
+        onStatus(t.mangle.downloading);
+        const downloaded = await download(
+          {
+            ytdlp,
+            ffmpegLocation: await findFfmpeg(),
+            url: file,
+            // it's getting pixelated anyway — 720p is plenty and much faster
+            choice: {
+              kind: mode === "mp3" ? "audio" : "video",
+              label: "",
+              args: mode === "mp3" ? ["-f", "ba/b"] : ["-f", "bv*[height<=720]+ba/b[height<=720]/b", "--merge-output-format", "mp4"]
+            },
+            outDir: scratch,
+            cancelledMessage: t.download.cancelled
+          },
+          {
+            onProgress: (progress) => progress.totalBytes ? onProgress(progress.downloadedBytes / progress.totalBytes) : void 0,
+            onProcessing: () => onProgress(1)
+          },
+          signal
+        );
+        onProgress(0);
+        onStatus(t.mangle.wrecking);
+        return await mangle({ ffmpeg, input: downloaded, outDir: outDir2, mode, suffix }, onProgress, signal);
+      } finally {
+        await fs9.rm(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      }
+    }
+  };
+}
 
 // src/app.tsx
 import { jsx as jsx12, jsxs as jsxs10 } from "react/jsx-runtime";
@@ -2220,7 +2377,7 @@ function AppContent({
   );
   const shellHints = [
     ...busy ? [] : [["\u21E7\u21E5", t.hint.tabs, () => switchTab(nextTab(tab))]],
-    ...busy ? [] : [["^f", `${t.hint.folder}:${shortenPath(outDir2, os7.homedir(), 24)}`, chooseFolder]],
+    ...busy ? [] : [["^f", `${t.hint.folder}:${shortenPath(outDir2, os8.homedir(), 24)}`, chooseFolder]],
     ["^l", `${t.hint.lang}:${lang2}`, cycleLang],
     ["^t", `${t.hint.theme}:${theme.mode}`, cycleTheme]
   ];
@@ -2233,6 +2390,7 @@ function AppContent({
   const handleOutcome = useCallback3((filepath) => onOutcome({ filepath }), [onOutcome]);
   const convert = useMemo2(() => convertJob(stringsFor(lang2)), [lang2]);
   const clean = useMemo2(() => cleanJob(stringsFor(lang2), lang2), [lang2]);
+  const wreck = useMemo2(() => mangleJob(stringsFor(lang2), lang2), [lang2]);
   useMouseClick(
     (x, y) => {
       const taglineRow = findFrameRow(t.tagline);
@@ -2259,7 +2417,8 @@ function AppContent({
     /* @__PURE__ */ jsxs10(ShellProvider, { value: shell, children: [
       tab === "download" && /* @__PURE__ */ jsx12(DownloadTab, { initialUrl: initialUrl2, clipboardUrl: clipboardUrl2, autoPick, onOutcome: handleOutcome }),
       tab === "convert" && /* @__PURE__ */ jsx12(FileJobTab, { job: convert, onOutcome: handleOutcome }),
-      tab === "clean" && /* @__PURE__ */ jsx12(FileJobTab, { job: clean, onOutcome: handleOutcome })
+      tab === "clean" && /* @__PURE__ */ jsx12(FileJobTab, { job: clean, onOutcome: handleOutcome }),
+      tab === "mangle" && /* @__PURE__ */ jsx12(FileJobTab, { job: wreck, onOutcome: handleOutcome })
     ] })
   ] });
 }
@@ -2358,6 +2517,7 @@ var HELP = {
     indirgec   download videos from YouTube, X, Instagram, TikTok & 1800+ sites
     d\xF6nd\xFCrgec  convert mp4 (or any video) to mp3
     sildirgec  remove visible Gemini / Veo / NotebookLM watermarks
+    bozdurgac  wreck a video on purpose \u2014 pixel mush and blown-out bass
 
   Usage
     $ doing [url]
@@ -2385,6 +2545,7 @@ var HELP = {
     indirgec   YouTube, X, Instagram, TikTok ve 1800+ siteden video indir
     d\xF6nd\xFCrgec  mp4'\xFC (ya da herhangi bir videoyu) mp3'e d\xF6n\xFC\u015Ft\xFCr
     sildirgec  g\xF6r\xFCn\xFCr Gemini / Veo / NotebookLM filigranlar\u0131n\u0131 sil
+    bozdurgac  videoyu bilerek boz \u2014 piksel piksel g\xF6r\xFCnt\xFC, patlak bass
 
   Kullan\u0131m
     $ doing [link]
@@ -2444,7 +2605,7 @@ if (args.update) {
 }
 var initialUrl = args.initialUrl;
 var initialThemeMode = args.themeMode ?? "auto";
-var outDir = args.outDir ? path9.resolve(normalizeDroppedPath(args.outDir)) : loadSettings().outDir ?? DEFAULT_OUT_DIR;
+var outDir = args.outDir ? path11.resolve(normalizeDroppedPath(args.outDir)) : loadSettings().outDir ?? DEFAULT_OUT_DIR;
 var isTTY = Boolean(process.stdout.isTTY);
 var clipboardUrl;
 if (!initialUrl && isTTY) {

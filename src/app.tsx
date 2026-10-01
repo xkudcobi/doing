@@ -13,7 +13,7 @@ import {useMouseClick} from './lib/use-mouse-click.js'
 import {DownloadTab} from './tabs/download-tab.js'
 import {FileJobTab} from './tabs/file-job-tab.js'
 import {Gap, type Hint, type Shell, ShellProvider} from './tabs/shared.js'
-import {cleanJob, convertJob} from './tabs/tools.js'
+import {cleanJob, convertJob, mangleJob} from './tabs/tools.js'
 import {nextThemeMode, ThemeProvider, type ThemeMode, useTheme} from './theme.js'
 
 export type Outcome = {filepath?: string}
@@ -109,6 +109,7 @@ function AppContent({
   const handleOutcome = useCallback((filepath: string) => onOutcome({filepath}), [onOutcome])
   const convert = useMemo(() => convertJob(stringsFor(lang)), [lang])
   const clean = useMemo(() => cleanJob(stringsFor(lang), lang), [lang])
+  const wreck = useMemo(() => mangleJob(stringsFor(lang), lang), [lang])
 
   useMouseClick(
     (x, y) => {
@@ -142,6 +143,7 @@ function AppContent({
         )}
         {tab === 'convert' && <FileJobTab job={convert} onOutcome={handleOutcome} />}
         {tab === 'clean' && <FileJobTab job={clean} onOutcome={handleOutcome} />}
+        {tab === 'mangle' && <FileJobTab job={wreck} onOutcome={handleOutcome} />}
       </ShellProvider>
     </FullScreen>
   )
