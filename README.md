@@ -53,11 +53,12 @@ doing --lang en                         # İngilizce arayüz
 doing --update                          # yt-dlp ve filigran motorunu güncelle
 ```
 
-**Kısayollar:** `⇧⇥` sekme değiştir · `↑↓` seç · `↵` başlat · `esc` geri/iptal · `^l` dil · `^t` tema · `^c` çık.
+**Kısayollar:** `^f` kayıt klasörü · `⇧⇥` sekme değiştir · `↑↓` seç · `↵` başlat · `esc` geri/iptal · `^l` dil · `^t` tema · `^c` çık.
 Fareyle de kullanılabilir: sekmeler, butonlar, liste ve alttaki kısayollar tıklanabilir; logoya tıklamak başa döner.
 
 **döndürgec / sildirgec:** `^o` ile (ya da alttaki "dosya seç"e tıklayarak) bilgisayardan dosya seç, dosyayı terminal penceresine sürükle (yolu otomatik yapıştırılır ve işlem başlar) ya da tam yolunu yaz.
-Çıktılar varsayılan olarak `~/Downloads` klasörüne kaydedilir. Aynı adda bir dosya varsa üzerine yazılmaz, `ad (2).mp3` olarak kaydedilir.
+**Kayıt klasörü:** `^f` ile (ya da alttaki "klasör"e tıklayarak) dosyaların nereye kaydedileceğini seç; seçimin hatırlanır. Varsayılan `~/Downloads`.
+İş bitince `o` tuşu, "klasörde göster" butonu ya da gösterilen dosya yolu, dosyayı Gezgin/Finder'da seçili olarak açar. Aynı adda bir dosya varsa üzerine yazılmaz, `ad (2).mp3` olarak kaydedilir.
 
 ### Nasıl çalışır
 
@@ -143,11 +144,12 @@ doing --lang tr                         # Turkish interface
 doing --update                          # update yt-dlp and the watermark engine
 ```
 
-**Keys:** `⇧⇥` switch tab · `↑↓` choose · `↵` go · `esc` back/cancel · `^l` language · `^t` theme · `^c` quit.
+**Keys:** `^f` save folder · `⇧⇥` switch tab · `↑↓` choose · `↵` go · `esc` back/cancel · `^l` language · `^t` theme · `^c` quit.
 Mouse works too: tabs, buttons, the picker and the footer hints are clickable; clicking the logo takes you home.
 
 **döndürgec / sildirgec:** press `^o` (or click "pick a file") to choose one from your computer, drag a file onto the terminal window (its path is pasted and the job starts), or type its full path.
-Output goes to `~/Downloads` by default. Existing files are never overwritten — you get `name (2).mp3` instead.
+**Save folder:** press `^f` (or click "folder" in the footer) to choose where files go; it is remembered. Default is `~/Downloads`.
+When a job finishes, `o`, the "show in folder" button, or the printed path opens the file selected in Explorer/Finder. Existing files are never overwritten — you get `name (2).mp3` instead.
 
 ### How it works
 

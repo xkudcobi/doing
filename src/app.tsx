@@ -1,10 +1,14 @@
 import React, {useCallback, useMemo, useRef, useState} from 'react'
+import os from 'node:os'
 import {Text, useInput} from 'ink'
 import {FullScreen} from './components/fullscreen.js'
 import {Logo} from './components/logo.js'
 import {nextTab, TABS, TabBar, tabText, type TabId} from './components/tab-bar.js'
 import {type Lang, LangProvider, nextLang, stringsFor, useStrings} from './i18n.js'
 import {clickTargetAt, findFrameRow, frameRowSpan, type ClickTarget} from './lib/click-map.js'
+import {pickFolder} from './lib/file-picker.js'
+import {shortenPath} from './lib/format.js'
+import {saveSettings} from './lib/settings.js'
 import {useMouseClick} from './lib/use-mouse-click.js'
 import {DownloadTab} from './tabs/download-tab.js'
 import {FileJobTab} from './tabs/file-job-tab.js'
@@ -43,7 +47,7 @@ function AppContent({
   initialUrl,
   clipboardUrl,
   autoPick,
-  outDir,
+  outDir: initialOutDir,
   onOutcome,
   lang,
   cycleTheme,
@@ -53,6 +57,22 @@ function AppContent({
   const t = useStrings()
   const [tab, setTab] = useState<TabId>('download')
   const [busy, setBusy] = useState(false)
+  const [outDir, setOutDir] = useState(initialOutDir)
+  const choosingFolder = useRef(false)
+
+  // where every tab saves its results — picked with the OS folder dialog, remembered across runs
+  const chooseFolder = useCallback(() => {
+    if (busy || choosingFolder.current) return
+    choosingFolder.current = true
+    void pickFolder(t.done.folderTitle, outDir, t.done.folderPlaceholder)
+      .then(folder => {
+        if (!folder) return
+        setOutDir(folder)
+        saveSettings({outDir: folder})
+      })
+      .catch(() => undefined) // no dialog on this system — -o still works
+      .finally(() => (choosingFolder.current = false))
+  }, [busy, outDir, t])
   const clicks = useRef<ClickTarget[]>([])
   const home = useRef<(() => void) | undefined>(undefined)
 
@@ -67,6 +87,7 @@ function AppContent({
     (input, key) => {
       if (key.ctrl && input === 't') cycleTheme()
       else if (key.ctrl && input === 'l') cycleLang()
+      else if (key.ctrl && input === 'f') chooseFolder()
       else if (key.tab && key.shift) switchTab(nextTab(tab))
     },
     {isActive: Boolean(process.stdin.isTTY)},
@@ -74,6 +95,7 @@ function AppContent({
 
   const shellHints: Hint[] = [
     ...(busy ? [] : [['⇧⇥', t.hint.tabs, () => switchTab(nextTab(tab))] as Hint]),
+    ...(busy ? [] : [['^f', `${t.hint.folder}:${shortenPath(outDir, os.homedir(), 24)}`, chooseFolder] as Hint]),
     ['^l', `${t.hint.lang}:${lang}`, cycleLang],
     ['^t', `${t.hint.theme}:${theme.mode}`, cycleTheme],
   ]
@@ -81,7 +103,7 @@ function AppContent({
     () => ({outDir, setBusy, clicks, home, hints: shellHints}),
     // hints are rebuilt each render; the object identity only matters for setBusy effects
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [outDir, busy, lang, theme.mode, tab],
+    [outDir, busy, lang, theme.mode, tab, chooseFolder],
   )
 
   const handleOutcome = useCallback((filepath: string) => onOutcome({filepath}), [onOutcome])

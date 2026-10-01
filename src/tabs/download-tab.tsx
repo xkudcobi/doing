@@ -23,7 +23,7 @@ import {
   type VideoInfo,
 } from '../lib/ytdlp.js'
 import {useTheme} from '../theme.js'
-import {DoneView, ErrorView, Footer, Gap, type Hint, SpinnerText, errorMessage, registerClicks, useLayout, useShell} from './shared.js'
+import {DoneView, ErrorView, Footer, Gap, type Hint, SpinnerText, errorMessage, doneTargets, registerClicks, reveal, useLayout, useShell} from './shared.js'
 
 const choiceLabel = (choice: DownloadChoice) => `${choice.kind === 'audio' ? '♪ ' : '▶ '}${choice.label}`
 
@@ -215,10 +215,11 @@ export function DownloadTab({initialUrl, clipboardUrl, autoPick, onOutcome}: Dow
   }, [resetToInput, url])
 
   useInput(
-    (_input, key) => {
+    (input, key) => {
       if (key.escape && (phase.name === 'picking' || phase.name === 'error' || phase.name === 'done')) resetToInput()
       if (key.escape && busy) cancelRun()
       if (key.return && (phase.name === 'error' || phase.name === 'done')) resetToInput()
+      if (phase.name === 'done' && input === 'o' && !key.ctrl && !key.meta) revealDone()
     },
     {isActive: Boolean(process.stdin.isTTY)},
   )
@@ -238,6 +239,9 @@ export function DownloadTab({initialUrl, clipboardUrl, autoPick, onOutcome}: Dow
   const clipboardOffered = Boolean(clipboardUrl) && urlInput === ''
   const clipboardAccepted = Boolean(clipboardUrl) && urlInput === clipboardUrl
 
+  const revealDone = () => {
+    if (phase.name === 'done') reveal(phase.filepath, phase.folder)()
+  }
   const quit: Hint = ['^c', t.hint.quit, () => exit()]
   const back: Hint = ['esc', t.hint.back, resetToInput]
   const cancel: Hint = ['esc', t.hint.cancel, cancelRun]
@@ -246,7 +250,7 @@ export function DownloadTab({initialUrl, clipboardUrl, autoPick, onOutcome}: Dow
     probing: [cancel, quit],
     picking: [['↑↓', t.hint.choose], ['↵', t.hint.go, () => handlePick({value: highlightRef.current})], back, quit],
     downloading: [cancel, quit],
-    done: [back, quit],
+    done: [...(phase.name === 'done' ? [['o', t.done.revealShort, revealDone] as Hint] : []), back, quit],
     error: [['↵', t.hint.tryAgain, resetToInput], quit],
   }
   const hints = [...own[phase.name], ...shell.hints]
@@ -265,7 +269,7 @@ export function DownloadTab({initialUrl, clipboardUrl, autoPick, onOutcome}: Dow
     }
   }
   if (phase.name === 'done') {
-    targets.push({match: t.done.another, padX: 4, padY: 1, action: resetToInput})
+    targets.push(...doneTargets(t, phase.filepath, phase.folder, resetToInput))
   }
   registerClicks(shell, targets, hints)
   shell.home.current = busy ? cancelRun : phase.name !== 'input' ? resetToInput : undefined

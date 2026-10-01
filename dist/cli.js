@@ -2,11 +2,12 @@
 
 // src/cli.tsx
 import { createRequire } from "module";
-import path7 from "path";
+import path9 from "path";
 import { render } from "ink";
 
 // src/app.tsx
 import { useCallback as useCallback3, useMemo as useMemo2, useRef as useRef5, useState as useState6 } from "react";
+import os7 from "os";
 import { Text as Text11, useInput as useInput4 } from "ink";
 
 // src/components/fullscreen.tsx
@@ -233,7 +234,8 @@ var en = {
     history: "history",
     tabs: "tabs",
     theme: "theme",
-    lang: "lang"
+    lang: "lang",
+    folder: "folder"
   },
   download: {
     button: "download",
@@ -300,7 +302,11 @@ var en = {
     title: "\u2713 done!",
     find: "find your file in:",
     findFolder: "find your files in:",
-    another: "\u21B5 another one"
+    another: "\u21B5 another one",
+    reveal: "o show in folder",
+    revealShort: "show in folder",
+    folderTitle: "doing \u2014 where should files be saved? Open the folder, then press Open",
+    folderPlaceholder: "select this folder"
   },
   errors: {
     downloadFailed: (what, status) => `Could not download ${what} (${status}). Check your connection and try again.`
@@ -323,7 +329,8 @@ var tr = {
     history: "ge\xE7mi\u015F",
     tabs: "sekmeler",
     theme: "tema",
-    lang: "dil"
+    lang: "dil",
+    folder: "klas\xF6r"
   },
   download: {
     button: "indir",
@@ -390,7 +397,11 @@ var tr = {
     title: "\u2713 bitti!",
     find: "dosyan burada:",
     findFolder: "dosyalar\u0131n burada:",
-    another: "\u21B5 bir tane daha"
+    another: "\u21B5 bir tane daha",
+    reveal: "o klas\xF6rde g\xF6ster",
+    revealShort: "klas\xF6rde g\xF6ster",
+    folderTitle: "doing \u2014 dosyalar nereye kaydedilsin? Klas\xF6re girip A\xE7\u2019a bas",
+    folderPlaceholder: "bu klas\xF6r\xFC se\xE7"
   },
   errors: {
     downloadFailed: (what, status) => `${what} indirilemedi (${status}). Ba\u011Flant\u0131n\u0131 kontrol edip tekrar dene.`
@@ -489,6 +500,177 @@ function frameRowSpan(row) {
   const first = line.search(/\S/);
   if (first === -1) return void 0;
   return [first + 1, line.trimEnd().length];
+}
+
+// src/lib/file-picker.ts
+import { spawn } from "child_process";
+var NoPickerAvailable = class extends Error {
+};
+async function pickFile(options) {
+  if (process.platform === "win32") return pickWindows(options);
+  if (process.platform === "darwin") return pickMac(options);
+  return pickLinux(options);
+}
+function run(cmd, args2) {
+  return new Promise((resolve) => {
+    let stdout = "";
+    const child = spawn(cmd, args2, { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => stdout += chunk);
+    child.on("error", () => resolve({ code: null, stdout: "", missing: true }));
+    child.on("close", (code) => resolve({ code, stdout: stdout.trim(), missing: false }));
+  });
+}
+var psQuote = (value) => `'${value.replace(/['‘’‚‛]/g, (quote) => quote + quote)}'`;
+function windowsDialogScript(lines) {
+  return [
+    "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
+    "Add-Type -AssemblyName System.Windows.Forms, System.Drawing",
+    // a topmost (never shown) owner window keeps the dialog above the terminal
+    "$owner = New-Object System.Windows.Forms.Form -Property @{TopMost = $true; ShowInTaskbar = $false}",
+    // Windows won't let a background process take the foreground; a synthetic
+    // Alt tap counts as user input and lifts that lock for the next activation
+    `Add-Type -Namespace DoingWin -Name Native -MemberDefinition '[DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, System.UIntPtr extra); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(System.IntPtr hWnd);'`,
+    "[DoingWin.Native]::keybd_event(0x12, 0, 0, [System.UIntPtr]::Zero)",
+    "[DoingWin.Native]::keybd_event(0x12, 0, 2, [System.UIntPtr]::Zero)",
+    ...lines,
+    "$owner.Dispose()"
+  ].join("; ");
+}
+async function runWindowsDialog(lines) {
+  const script = windowsDialogScript(lines);
+  const encoded = Buffer.from(script, "utf16le").toString("base64");
+  const { stdout, missing } = await run("powershell", ["-NoProfile", "-STA", "-NonInteractive", "-EncodedCommand", encoded]);
+  if (missing) throw new NoPickerAvailable();
+  return stdout || void 0;
+}
+function pickWindows({ title, filterLabel, allLabel, extensions }) {
+  const patterns = extensions.map((ext) => `*${ext}`).join(";");
+  return runWindowsDialog([
+    "$dialog = New-Object System.Windows.Forms.OpenFileDialog",
+    `$dialog.Title = ${psQuote(title)}`,
+    `$dialog.Filter = ${psQuote(`${filterLabel} (${patterns})|${patterns}|${allLabel} (*.*)|*.*`)}`,
+    "$dialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')",
+    "if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }"
+  ]);
+}
+async function pickMac({ title, extensions }) {
+  const types = extensions.map((ext) => `"${ext.slice(1)}"`).join(", ");
+  const script = `POSIX path of (choose file with prompt ${JSON.stringify(title)} of type {${types}})`;
+  const { code, stdout, missing } = await run("osascript", ["-e", script]);
+  if (missing) throw new NoPickerAvailable();
+  return code === 0 && stdout ? stdout : void 0;
+}
+async function pickLinux({ title, filterLabel, extensions }) {
+  const patterns = extensions.map((ext) => `*${ext}`).join(" ");
+  const zenity = await run("zenity", ["--file-selection", `--title=${title}`, `--file-filter=${filterLabel} | ${patterns}`]);
+  if (!zenity.missing) return zenity.code === 0 && zenity.stdout ? zenity.stdout : void 0;
+  const kdialog = await run("kdialog", ["--title", title, "--getopenfilename", ".", patterns]);
+  if (!kdialog.missing) return kdialog.code === 0 && kdialog.stdout ? kdialog.stdout : void 0;
+  throw new NoPickerAvailable();
+}
+async function pickFolder(title, initial, folderPlaceholder = "select this folder") {
+  if (process.platform === "win32") {
+    return runWindowsDialog([
+      "$dialog = New-Object System.Windows.Forms.OpenFileDialog",
+      `$dialog.Title = ${psQuote(title)}`,
+      `$dialog.InitialDirectory = ${psQuote(initial)}`,
+      "$dialog.ValidateNames = $false",
+      "$dialog.CheckFileExists = $false",
+      "$dialog.CheckPathExists = $true",
+      `$dialog.FileName = ${psQuote(folderPlaceholder)}`,
+      "if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write([System.IO.Path]::GetDirectoryName($dialog.FileName)) }"
+    ]);
+  }
+  if (process.platform === "darwin") {
+    const script = `POSIX path of (choose folder with prompt ${JSON.stringify(title)} default location (POSIX file ${JSON.stringify(initial)}))`;
+    const { code, stdout, missing } = await run("osascript", ["-e", script]);
+    if (missing) throw new NoPickerAvailable();
+    return code === 0 && stdout ? stdout : void 0;
+  }
+  const zenity = await run("zenity", ["--file-selection", "--directory", `--title=${title}`, `--filename=${initial}/`]);
+  if (!zenity.missing) return zenity.code === 0 && zenity.stdout ? zenity.stdout : void 0;
+  const kdialog = await run("kdialog", ["--title", title, "--getexistingdirectory", initial]);
+  if (!kdialog.missing) return kdialog.code === 0 && kdialog.stdout ? kdialog.stdout : void 0;
+  throw new NoPickerAvailable();
+}
+
+// src/lib/format.ts
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "";
+  const units = ["B", "KB", "MB", "GB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+}
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "";
+  const s = Math.round(seconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor(s % 3600 / 60);
+  const sec = s % 60;
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  const ss = String(sec).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+function truncate(text, max) {
+  return text.length > max ? `${text.slice(0, max - 1)}\u2026` : text;
+}
+function shortenPath(filepath, homedir, max = 60) {
+  const pretty = filepath.startsWith(homedir) ? `~${filepath.slice(homedir.length)}` : filepath;
+  if (pretty.length <= max) return pretty;
+  const ext = /\.\w{1,5}$/.exec(pretty)?.[0] ?? "";
+  return `${pretty.slice(0, max - ext.length - 1)}\u2026${ext}`;
+}
+function wrapText(text, width) {
+  const lines = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (!line) line = word;
+    else if (line.length + 1 + word.length <= width) line += ` ${word}`;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function formatSpeed(bytesPerSecond) {
+  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "";
+  return `${formatBytes(bytesPerSecond)}/s`;
+}
+function formatEta(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "";
+  return formatDuration(seconds);
+}
+
+// src/lib/settings.ts
+import fs from "fs";
+import os from "os";
+import path from "path";
+var SETTINGS_FILE = path.join(os.homedir(), ".config", "doing", "settings.json");
+function loadSettings() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8"));
+    if (!parsed || typeof parsed !== "object") return {};
+    const { outDir: outDir2 } = parsed;
+    return typeof outDir2 === "string" ? { outDir: outDir2 } : {};
+  } catch {
+    return {};
+  }
+}
+function saveSettings(settings) {
+  try {
+    fs.mkdirSync(path.dirname(SETTINGS_FILE), { recursive: true });
+    fs.writeFileSync(SETTINGS_FILE, `${JSON.stringify({ ...loadSettings(), ...settings }, null, 2)}
+`);
+  } catch {
+  }
 }
 
 // src/lib/use-mouse-click.ts
@@ -766,69 +948,15 @@ function TextInput({
   return /* @__PURE__ */ jsx7(Text6, { children: cells });
 }
 
-// src/lib/format.ts
-function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "";
-  const units = ["B", "KB", "MB", "GB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit++;
-  }
-  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
-}
-function formatDuration(seconds) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "";
-  const s = Math.round(seconds);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor(s % 3600 / 60);
-  const sec = s % 60;
-  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
-  const ss = String(sec).padStart(2, "0");
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-}
-function truncate(text, max) {
-  return text.length > max ? `${text.slice(0, max - 1)}\u2026` : text;
-}
-function shortenPath(filepath, homedir, max = 60) {
-  const pretty = filepath.startsWith(homedir) ? `~${filepath.slice(homedir.length)}` : filepath;
-  if (pretty.length <= max) return pretty;
-  const ext = /\.\w{1,5}$/.exec(pretty)?.[0] ?? "";
-  return `${pretty.slice(0, max - ext.length - 1)}\u2026${ext}`;
-}
-function wrapText(text, width) {
-  const lines = [];
-  let line = "";
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    if (!line) line = word;
-    else if (line.length + 1 + word.length <= width) line += ` ${word}`;
-    else {
-      lines.push(line);
-      line = word;
-    }
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-function formatSpeed(bytesPerSecond) {
-  if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) return "";
-  return `${formatBytes(bytesPerSecond)}/s`;
-}
-function formatEta(seconds) {
-  if (!Number.isFinite(seconds) || seconds <= 0) return "";
-  return formatDuration(seconds);
-}
-
 // src/lib/history.ts
-import fs from "fs";
-import os from "os";
-import path from "path";
-var HISTORY_FILE = path.join(os.homedir(), ".config", "doing", "history.json");
+import fs2 from "fs";
+import os2 from "os";
+import path2 from "path";
+var HISTORY_FILE = path2.join(os2.homedir(), ".config", "doing", "history.json");
 var LIMIT = 50;
 function loadHistory() {
   try {
-    const parsed = JSON.parse(fs.readFileSync(HISTORY_FILE, "utf8"));
+    const parsed = JSON.parse(fs2.readFileSync(HISTORY_FILE, "utf8"));
     return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry === "string") : [];
   } catch {
     return [];
@@ -837,8 +965,8 @@ function loadHistory() {
 function addToHistory(url) {
   const next = [url, ...loadHistory().filter((entry) => entry !== url)].slice(0, LIMIT);
   try {
-    fs.mkdirSync(path.dirname(HISTORY_FILE), { recursive: true });
-    fs.writeFileSync(HISTORY_FILE, `${JSON.stringify(next, null, 2)}
+    fs2.mkdirSync(path2.dirname(HISTORY_FILE), { recursive: true });
+    fs2.writeFileSync(HISTORY_FILE, `${JSON.stringify(next, null, 2)}
 `);
   } catch {
   }
@@ -881,22 +1009,22 @@ function isProbablyUrl(input) {
 }
 
 // src/lib/ytdlp.ts
-import { spawn as spawn2 } from "child_process";
-import fs5 from "fs/promises";
-import os3 from "os";
-import path4 from "path";
+import { spawn as spawn3 } from "child_process";
+import fs6 from "fs/promises";
+import os4 from "os";
+import path5 from "path";
 
 // src/lib/exec.ts
-import { spawn, spawnSync } from "child_process";
+import { spawn as spawn2, spawnSync } from "child_process";
 import { createWriteStream } from "fs";
-import fs2 from "fs/promises";
+import fs3 from "fs/promises";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 function commandWorks(cmd, args2) {
   return new Promise((resolve) => {
     let child;
     try {
-      child = spawn(cmd, args2, { stdio: "ignore", timeout: 1e4 });
+      child = spawn2(cmd, args2, { stdio: "ignore", timeout: 1e4 });
     } catch {
       resolve(false);
       return;
@@ -923,11 +1051,11 @@ async function fetchToFile(url, dest, onFail, signal) {
   if (!response.ok || !response.body) throw onFail(response.status);
   const tmp = `${dest}.download`;
   await pipeline(Readable.fromWeb(response.body), createWriteStream(tmp), { signal });
-  await fs2.rename(tmp, dest);
+  await fs3.rename(tmp, dest);
 }
 function runWithLines(cmd, args2, onLine, signal) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args2);
+    const child = spawn2(cmd, args2);
     killOnAbort(child, signal);
     let output = "";
     const split = () => {
@@ -949,20 +1077,20 @@ function runWithLines(cmd, args2, onLine, signal) {
 }
 
 // src/lib/ffmpeg.ts
-import fs4 from "fs/promises";
-import path3 from "path";
+import fs5 from "fs/promises";
+import path4 from "path";
 
 // src/lib/paths.ts
-import fs3 from "fs";
-import os2 from "os";
-import path2 from "path";
-var BIN_DIR = path2.join(os2.homedir(), ".doing", "bin");
-var DEFAULT_OUT_DIR = path2.join(os2.homedir(), "Downloads");
+import fs4 from "fs";
+import os3 from "os";
+import path3 from "path";
+var BIN_DIR = path3.join(os3.homedir(), ".doing", "bin");
+var DEFAULT_OUT_DIR = path3.join(os3.homedir(), "Downloads");
 var VIDEO_EXTS = /* @__PURE__ */ new Set([".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"]);
 var AUDIO_EXTS = /* @__PURE__ */ new Set([".m4a", ".wav", ".flac", ".ogg", ".opus", ".aac", ".wma"]);
 var IMAGE_EXTS = /* @__PURE__ */ new Set([".png", ".jpg", ".jpeg", ".webp"]);
-var extOf = (file) => path2.extname(file).toLowerCase();
-function normalizeDroppedPath(input, homedir = os2.homedir()) {
+var extOf = (file) => path3.extname(file).toLowerCase();
+function normalizeDroppedPath(input, homedir = os3.homedir()) {
   let value = input.trim();
   if (value.startsWith("& ")) value = value.slice(2).trim();
   if (value.length >= 2 && (value[0] === '"' || value[0] === "'") && value.at(-1) === value[0]) {
@@ -975,20 +1103,20 @@ function normalizeDroppedPath(input, homedir = os2.homedir()) {
     } catch {
     }
   }
-  if (path2.sep === "/") value = value.replace(/\\(.)/g, "$1");
-  if (value === "~" || value.startsWith("~/") || value.startsWith("~\\")) value = path2.join(homedir, value.slice(1));
+  if (path3.sep === "/") value = value.replace(/\\(.)/g, "$1");
+  if (value === "~" || value.startsWith("~/") || value.startsWith("~\\")) value = path3.join(homedir, value.slice(1));
   return value;
 }
 function isExistingFile(file) {
   try {
-    return fs3.statSync(file).isFile();
+    return fs4.statSync(file).isFile();
   } catch {
     return false;
   }
 }
-function uniquePath(dir, name, ext, exists = fs3.existsSync) {
-  let candidate = path2.join(dir, `${name}${ext}`);
-  for (let n = 2; exists(candidate); n++) candidate = path2.join(dir, `${name} (${n})${ext}`);
+function uniquePath(dir, name, ext, exists = fs4.existsSync) {
+  let candidate = path3.join(dir, `${name}${ext}`);
+  for (let n = 2; exists(candidate); n++) candidate = path3.join(dir, `${name} (${n})${ext}`);
   return candidate;
 }
 
@@ -1013,8 +1141,8 @@ function parseProgressSeconds(line) {
   return match ? Number(match[1]) / 1e6 : void 0;
 }
 async function convertToMp3(opts, onProgress, signal) {
-  await fs4.mkdir(opts.outDir, { recursive: true });
-  const output = uniquePath(opts.outDir, path3.parse(opts.input).name, ".mp3");
+  await fs5.mkdir(opts.outDir, { recursive: true });
+  const output = uniquePath(opts.outDir, path4.parse(opts.input).name, ".mp3");
   let duration;
   const args2 = ["-hide_banner", "-nostdin", "-y", "-i", opts.input, "-vn", "-c:a", "libmp3lame", "-q:a", "0"];
   args2.push("-progress", "pipe:1", "-nostats", output);
@@ -1032,7 +1160,7 @@ async function convertToMp3(opts, onProgress, signal) {
     throw error;
   });
   if (signal?.aborted || code !== 0) {
-    await fs4.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
+    await fs5.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
     if (signal?.aborted) throw new Error("cancelled");
     const reason = log.split(/\r?\n/).map((l) => l.trim()).filter((l) => /error|invalid|no such|does not contain/i.test(l)).at(-1);
     throw new Error(reason || `ffmpeg exited with code ${code}`);
@@ -1048,28 +1176,28 @@ function ytDlpAssetName() {
   if (process.platform === "darwin") return "yt-dlp_macos";
   return process.arch === "arm64" ? "yt-dlp_linux_aarch64" : "yt-dlp_linux";
 }
-var localYtDlp = () => path4.join(BIN_DIR, process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
+var localYtDlp = () => path5.join(BIN_DIR, process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp");
 async function ensureYtDlp(t, onStatus, signal) {
   if (await commandWorks("yt-dlp", ["--version"])) return "yt-dlp";
   const local = localYtDlp();
   if (await commandWorks(local, ["--version"])) {
-    const { mtimeMs } = await fs5.stat(local);
+    const { mtimeMs } = await fs6.stat(local);
     if (Date.now() - mtimeMs > STALE_AFTER_MS) {
       onStatus(t.download.updatingYtDlp);
       await commandWorks(local, ["-U"]);
-      await fs5.utimes(local, /* @__PURE__ */ new Date(), /* @__PURE__ */ new Date()).catch(() => void 0);
+      await fs6.utimes(local, /* @__PURE__ */ new Date(), /* @__PURE__ */ new Date()).catch(() => void 0);
     }
     return local;
   }
   onStatus(t.download.fetchingYtDlp);
-  await fs5.mkdir(BIN_DIR, { recursive: true });
+  await fs6.mkdir(BIN_DIR, { recursive: true });
   await fetchToFile(
     `${RELEASE_BASE}/${ytDlpAssetName()}`,
     local,
     (status) => new Error(t.errors.downloadFailed("yt-dlp", status)),
     signal
   );
-  if (process.platform !== "win32") await fs5.chmod(local, 493);
+  if (process.platform !== "win32") await fs6.chmod(local, 493);
   return local;
 }
 async function updateYtDlp() {
@@ -1079,7 +1207,7 @@ async function updateYtDlp() {
   const local = localYtDlp();
   if (!await commandWorks(local, ["--version"])) return "yt-dlp will be downloaded on first use.";
   const ok = await commandWorks(local, ["-U"]);
-  await fs5.utimes(local, /* @__PURE__ */ new Date(), /* @__PURE__ */ new Date()).catch(() => void 0);
+  await fs6.utimes(local, /* @__PURE__ */ new Date(), /* @__PURE__ */ new Date()).catch(() => void 0);
   return ok ? "yt-dlp is up to date." : "yt-dlp update failed \u2014 check your connection.";
 }
 async function findFfmpeg() {
@@ -1090,7 +1218,7 @@ var isPlaylist = (info) => info._type === "playlist";
 var playlistSize = (info) => info.playlist_count ?? info.entries?.length ?? 0;
 async function probe(ytdlp, url, signal) {
   const stdout = await new Promise((resolve, reject) => {
-    const child = spawn2(ytdlp, ["-J", "--no-playlist", "--flat-playlist", "--no-warnings", url]);
+    const child = spawn3(ytdlp, ["-J", "--no-playlist", "--flat-playlist", "--no-warnings", url]);
     killOnAbort(child, signal);
     let out = "";
     let stderr = "";
@@ -1111,8 +1239,8 @@ async function probe(ytdlp, url, signal) {
   } catch {
     throw new Error("Could not parse video info from yt-dlp.");
   }
-  const infoJsonPath = path4.join(os3.tmpdir(), `doing-info-${process.pid}-${Date.now()}.json`);
-  await fs5.writeFile(infoJsonPath, stdout);
+  const infoJsonPath = path5.join(os4.tmpdir(), `doing-info-${process.pid}-${Date.now()}.json`);
+  await fs6.writeFile(infoJsonPath, stdout);
   return { info, infoJsonPath };
 }
 var MAX_VIDEO_CHOICES = 8;
@@ -1174,7 +1302,7 @@ process.on("exit", () => killTree(activeChild));
 function download(opts, handlers, signal) {
   const playlist = Boolean(opts.choice.playlist);
   const source = opts.infoJsonPath && !playlist ? ["--load-info-json", opts.infoJsonPath] : [opts.url];
-  const template = playlist ? path4.join(opts.outDir, "%(playlist_title).60s", "%(playlist_index)03d - %(title).60s.%(ext)s") : path4.join(opts.outDir, "%(title).60s.%(ext)s");
+  const template = playlist ? path5.join(opts.outDir, "%(playlist_title).60s", "%(playlist_index)03d - %(title).60s.%(ext)s") : path5.join(opts.outDir, "%(title).60s.%(ext)s");
   const args2 = [
     ...source,
     ...opts.choice.args,
@@ -1197,7 +1325,7 @@ function download(opts, handlers, signal) {
   ];
   if (opts.ffmpegLocation) args2.push("--ffmpeg-location", opts.ffmpegLocation);
   return new Promise((resolve, reject) => {
-    const child = spawn2(opts.ytdlp, args2);
+    const child = spawn3(opts.ytdlp, args2);
     killOnAbort(child, signal);
     activeChild = child;
     let stderr = "";
@@ -1247,8 +1375,8 @@ function download(opts, handlers, signal) {
           handlers.onProcessing();
         } else if (line.startsWith("[download] Destination: ")) {
           destinations.push(line.slice("[download] Destination: ".length));
-        } else if (path4.isAbsolute(line)) {
-          filepath = playlist ? path4.dirname(line) : line;
+        } else if (path5.isAbsolute(line)) {
+          filepath = playlist ? path5.dirname(line) : line;
         }
       }
     });
@@ -1271,7 +1399,7 @@ function download(opts, handlers, signal) {
 }
 function removePartials(destinations) {
   return Promise.allSettled(
-    destinations.flatMap((dest) => [dest, `${dest}.part`, `${dest}.ytdl`]).map((file) => fs5.rm(file, { force: true, maxRetries: 10, retryDelay: 200 }))
+    destinations.flatMap((dest) => [dest, `${dest}.part`, `${dest}.ytdl`]).map((file) => fs6.rm(file, { force: true, maxRetries: 10, retryDelay: 200 }))
   );
 }
 function toNumber(value) {
@@ -1287,7 +1415,7 @@ function cleanYtDlpError(stderr) {
 
 // src/tabs/shared.tsx
 import { createContext as createContext3, useContext as useContext3 } from "react";
-import os4 from "os";
+import os5 from "os";
 import { Box as Box5, Text as Text8, useStdout as useStdout3 } from "ink";
 import Spinner from "ink-spinner";
 
@@ -1310,6 +1438,20 @@ function Shortcuts({ items, leading }) {
       ] })
     ] }, `${key}-${label}`))
   ] });
+}
+
+// src/lib/reveal.ts
+import { spawn as spawn4 } from "child_process";
+import path6 from "path";
+function revealInFolder(target, isFolder = false) {
+  const [cmd, args2] = process.platform === "win32" ? ["explorer.exe", isFolder ? [`"${target}"`] : [`/select,"${target}"`]] : process.platform === "darwin" ? ["open", isFolder ? [target] : ["-R", target]] : ["xdg-open", [isFolder ? target : path6.dirname(target)]];
+  try {
+    const child = spawn4(cmd, args2, { detached: true, stdio: "ignore", windowsVerbatimArguments: process.platform === "win32" });
+    child.on("error", () => {
+    });
+    child.unref();
+  } catch {
+  }
 }
 
 // src/tabs/shared.tsx
@@ -1369,9 +1511,9 @@ function DoneView({ filepath, folder = false }) {
       ] }),
       /* @__PURE__ */ jsx9(Text8, { color: theme.primary, children: folder ? t.done.findFolder : t.done.find })
     ] }),
-    /* @__PURE__ */ jsx9(Text8, { color: theme.gray, dimColor: theme.dimSecondary, children: shortenPath(filepath, os4.homedir(), 60) }),
+    /* @__PURE__ */ jsx9(Text8, { color: theme.gray, dimColor: theme.dimSecondary, underline: true, children: donePath(filepath) }),
     /* @__PURE__ */ jsx9(Gap, {}),
-    /* @__PURE__ */ jsx9(
+    /* @__PURE__ */ jsx9(Box5, { gap: 2, children: [t.done.another, t.done.reveal].map((label) => /* @__PURE__ */ jsx9(
       Box5,
       {
         borderStyle: "round",
@@ -1379,10 +1521,21 @@ function DoneView({ filepath, folder = false }) {
         borderDimColor: theme.dimSecondary,
         borderBackgroundColor: theme.background,
         paddingX: 3,
-        children: /* @__PURE__ */ jsx9(Text8, { bold: true, color: theme.primary, children: t.done.another })
-      }
-    )
+        children: /* @__PURE__ */ jsx9(Text8, { bold: true, color: theme.primary, children: label })
+      },
+      label
+    )) })
   ] });
+}
+var donePath = (filepath) => shortenPath(filepath, os5.homedir(), 60);
+var reveal = (filepath, folder = false) => () => revealInFolder(filepath, folder);
+function doneTargets(t, filepath, folder, another) {
+  const show = reveal(filepath, folder);
+  return [
+    { match: t.done.another, padX: 4, padY: 1, action: another },
+    { match: t.done.reveal, padX: 4, padY: 1, action: show },
+    { match: donePath(filepath), action: show }
+  ];
 }
 function ErrorView({ message }) {
   const theme = useTheme();
@@ -1532,10 +1685,11 @@ function DownloadTab({ initialUrl: initialUrl2, clipboardUrl: clipboardUrl2, aut
     setUrlInput(url);
   }, [resetToInput, url]);
   useInput2(
-    (_input, key) => {
+    (input, key) => {
       if (key.escape && (phase.name === "picking" || phase.name === "error" || phase.name === "done")) resetToInput();
       if (key.escape && busy) cancelRun();
       if (key.return && (phase.name === "error" || phase.name === "done")) resetToInput();
+      if (phase.name === "done" && input === "o" && !key.ctrl && !key.meta) revealDone();
     },
     { isActive: Boolean(process.stdin.isTTY) }
   );
@@ -1551,6 +1705,9 @@ function DownloadTab({ initialUrl: initialUrl2, clipboardUrl: clipboardUrl2, aut
   const handlePick = (item) => startDownload(choices[item.value], url);
   const clipboardOffered = Boolean(clipboardUrl2) && urlInput === "";
   const clipboardAccepted = Boolean(clipboardUrl2) && urlInput === clipboardUrl2;
+  const revealDone = () => {
+    if (phase.name === "done") reveal(phase.filepath, phase.folder)();
+  };
   const quit = ["^c", t.hint.quit, () => exit()];
   const back = ["esc", t.hint.back, resetToInput];
   const cancel = ["esc", t.hint.cancel, cancelRun];
@@ -1559,7 +1716,7 @@ function DownloadTab({ initialUrl: initialUrl2, clipboardUrl: clipboardUrl2, aut
     probing: [cancel, quit],
     picking: [["\u2191\u2193", t.hint.choose], ["\u21B5", t.hint.go, () => handlePick({ value: highlightRef.current })], back, quit],
     downloading: [cancel, quit],
-    done: [back, quit],
+    done: [...phase.name === "done" ? [["o", t.done.revealShort, revealDone]] : [], back, quit],
     error: [["\u21B5", t.hint.tryAgain, resetToInput], quit]
   };
   const hints = [...own[phase.name], ...shell.hints];
@@ -1573,7 +1730,7 @@ function DownloadTab({ initialUrl: initialUrl2, clipboardUrl: clipboardUrl2, aut
     }
   }
   if (phase.name === "done") {
-    targets.push({ match: t.done.another, padX: 4, padY: 1, action: resetToInput });
+    targets.push(...doneTargets(t, phase.filepath, phase.folder, resetToInput));
   }
   registerClicks(shell, targets, hints);
   shell.home.current = busy ? cancelRun : phase.name !== "input" ? resetToInput : void 0;
@@ -1668,65 +1825,9 @@ function DownloadTab({ initialUrl: initialUrl2, clipboardUrl: clipboardUrl2, aut
 
 // src/tabs/file-job-tab.tsx
 import { useCallback as useCallback2, useEffect as useEffect5, useRef as useRef4, useState as useState5 } from "react";
-import path5 from "path";
+import path7 from "path";
 import { Box as Box7, Text as Text10, useApp as useApp2, useInput as useInput3 } from "ink";
 import SelectInput2 from "ink-select-input";
-
-// src/lib/file-picker.ts
-import { spawn as spawn3 } from "child_process";
-var NoPickerAvailable = class extends Error {
-};
-async function pickFile(options) {
-  if (process.platform === "win32") return pickWindows(options);
-  if (process.platform === "darwin") return pickMac(options);
-  return pickLinux(options);
-}
-function run(cmd, args2) {
-  return new Promise((resolve) => {
-    let stdout = "";
-    const child = spawn3(cmd, args2, { stdio: ["ignore", "pipe", "ignore"], windowsHide: true });
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => stdout += chunk);
-    child.on("error", () => resolve({ code: null, stdout: "", missing: true }));
-    child.on("close", (code) => resolve({ code, stdout: stdout.trim(), missing: false }));
-  });
-}
-var psQuote = (value) => `'${value.replace(/'/g, "''")}'`;
-async function pickWindows({ title, filterLabel, allLabel, extensions }) {
-  const patterns = extensions.map((ext) => `*${ext}`).join(";");
-  const script = [
-    "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
-    "Add-Type -AssemblyName System.Windows.Forms",
-    // an invisible topmost owner keeps the dialog in front of the terminal
-    "$owner = New-Object System.Windows.Forms.Form -Property @{TopMost = $true; ShowInTaskbar = $false}",
-    "$dialog = New-Object System.Windows.Forms.OpenFileDialog",
-    `$dialog.Title = ${psQuote(title)}`,
-    `$dialog.Filter = ${psQuote(`${filterLabel} (${patterns})|${patterns}|${allLabel} (*.*)|*.*`)}`,
-    "$dialog.InitialDirectory = [Environment]::GetFolderPath('Desktop')",
-    "if ($dialog.ShowDialog($owner) -eq 'OK') { [Console]::Out.Write($dialog.FileName) }"
-  ].join("; ");
-  const encoded = Buffer.from(script, "utf16le").toString("base64");
-  const { stdout, missing } = await run("powershell", ["-NoProfile", "-STA", "-NonInteractive", "-EncodedCommand", encoded]);
-  if (missing) throw new NoPickerAvailable();
-  return stdout || void 0;
-}
-async function pickMac({ title, extensions }) {
-  const types = extensions.map((ext) => `"${ext.slice(1)}"`).join(", ");
-  const script = `POSIX path of (choose file with prompt ${JSON.stringify(title)} of type {${types}})`;
-  const { code, stdout, missing } = await run("osascript", ["-e", script]);
-  if (missing) throw new NoPickerAvailable();
-  return code === 0 && stdout ? stdout : void 0;
-}
-async function pickLinux({ title, filterLabel, extensions }) {
-  const patterns = extensions.map((ext) => `*${ext}`).join(" ");
-  const zenity = await run("zenity", ["--file-selection", `--title=${title}`, `--file-filter=${filterLabel} | ${patterns}`]);
-  if (!zenity.missing) return zenity.code === 0 && zenity.stdout ? zenity.stdout : void 0;
-  const kdialog = await run("kdialog", ["--title", title, "--getopenfilename", ".", patterns]);
-  if (!kdialog.missing) return kdialog.code === 0 && kdialog.stdout ? kdialog.stdout : void 0;
-  throw new NoPickerAvailable();
-}
-
-// src/tabs/file-job-tab.tsx
 import { Fragment as Fragment4, jsx as jsx11, jsxs as jsxs9 } from "react/jsx-runtime";
 function FileJobTab({ job, onOutcome }) {
   const theme = useTheme();
@@ -1808,16 +1909,20 @@ function FileJobTab({ job, onOutcome }) {
       if (key.escape && (phase.name === "picking" || phase.name === "error" || phase.name === "done")) resetToInput();
       if (key.escape && busy) cancelRun();
       if (key.return && (phase.name === "error" || phase.name === "done")) resetToInput();
+      if (phase.name === "done" && input2 === "o" && !key.ctrl && !key.meta) revealDone();
     },
     { isActive: Boolean(process.stdin.isTTY) }
   );
+  const revealDone = () => {
+    if (phase.name === "done") reveal(phase.filepath)();
+  };
   const quit = ["^c", t.hint.quit, () => exit()];
   const back = ["esc", t.hint.back, resetToInput];
   const own = {
     input: [["\u21B5", t.hint.go, () => submit(input)], ["^o", t.file.browse, browse], quit],
     picking: [["\u2191\u2193", t.hint.choose], ["\u21B5", t.hint.go, () => pick(highlightRef.current)], back, quit],
     running: [["esc", t.hint.cancel, cancelRun], quit],
-    done: [back, quit],
+    done: [...phase.name === "done" ? [["o", t.done.revealShort, revealDone]] : [], back, quit],
     error: [["\u21B5", t.hint.tryAgain, resetToInput], quit]
   };
   const hints = [...own[phase.name], ...shell.hints];
@@ -1826,10 +1931,10 @@ function FileJobTab({ job, onOutcome }) {
   if (phase.name === "picking") {
     for (const [index, option] of phase.options.entries()) targets.push({ match: option.label, action: () => pick(index) });
   }
-  if (phase.name === "done") targets.push({ match: t.done.another, padX: 4, padY: 1, action: resetToInput });
+  if (phase.name === "done") targets.push(...doneTargets(t, phase.filepath, false, resetToInput));
   registerClicks(shell, targets, hints);
   shell.home.current = busy ? cancelRun : phase.name !== "input" ? resetToInput : void 0;
-  const fileName = (file) => truncate(path5.basename(file), Math.max(10, boxWidth - 8));
+  const fileName = (file) => truncate(path7.basename(file), Math.max(10, boxWidth - 8));
   return /* @__PURE__ */ jsxs9(Fragment4, { children: [
     phase.name === "input" && /* @__PURE__ */ jsxs9(Box7, { flexDirection: "column", alignItems: "center", children: [
       /* @__PURE__ */ jsx11(FramedInput, { title: t.file.inputTitle, width: boxWidth, button: job.button, children: /* @__PURE__ */ jsx11(
@@ -1871,10 +1976,10 @@ function FileJobTab({ job, onOutcome }) {
 }
 
 // src/lib/wmr.ts
-import { spawn as spawn4 } from "child_process";
-import fs6 from "fs/promises";
-import os5 from "os";
-import path6 from "path";
+import { spawn as spawn5 } from "child_process";
+import fs7 from "fs/promises";
+import os6 from "os";
+import path8 from "path";
 var RELEASE_BASE2 = "https://github.com/froggeric/gemini-watermark-and-synthid-remover/releases/latest/download";
 function wmrAsset(platform = process.platform, arch = process.arch) {
   const pick = (name, ext) => ({ archive: `${name}${ext}`, dir: name });
@@ -1885,12 +1990,12 @@ function wmrAsset(platform = process.platform, arch = process.arch) {
   return void 0;
 }
 function wmrBinary(dir) {
-  return path6.join(BIN_DIR, dir, process.platform === "win32" ? "wmr.exe" : "wmr");
+  return path8.join(BIN_DIR, dir, process.platform === "win32" ? "wmr.exe" : "wmr");
 }
 function extract(archive, into) {
-  const tar = process.platform === "win32" ? path6.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+  const tar = process.platform === "win32" ? path8.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
   return new Promise((resolve, reject) => {
-    const child = spawn4(tar, ["-xf", archive, "-C", into], { stdio: "ignore" });
+    const child = spawn5(tar, ["-xf", archive, "-C", into], { stdio: "ignore" });
     child.on("error", reject);
     child.on("close", (code) => code === 0 ? resolve() : reject(new Error(`tar exited with code ${code}`)));
   });
@@ -1901,13 +2006,13 @@ async function ensureWmr(messages, onStatus, signal, forceFetch = false) {
   const binary = wmrBinary(asset.dir);
   if (!forceFetch && await commandWorks(binary, ["--version"])) return binary;
   onStatus(messages.fetching);
-  await fs6.mkdir(BIN_DIR, { recursive: true });
-  const archive = path6.join(BIN_DIR, asset.archive);
+  await fs7.mkdir(BIN_DIR, { recursive: true });
+  const archive = path8.join(BIN_DIR, asset.archive);
   await fetchToFile(`${RELEASE_BASE2}/${asset.archive}`, archive, messages.downloadFailed, signal);
-  await fs6.rm(path6.join(BIN_DIR, asset.dir), { recursive: true, force: true });
+  await fs7.rm(path8.join(BIN_DIR, asset.dir), { recursive: true, force: true });
   await extract(archive, BIN_DIR);
-  await fs6.rm(archive, { force: true });
-  if (process.platform !== "win32") await fs6.chmod(binary, 493);
+  await fs7.rm(archive, { force: true });
+  if (process.platform !== "win32") await fs7.chmod(binary, 493);
   return binary;
 }
 function parseWmrProgress(line) {
@@ -1920,8 +2025,8 @@ var isImage = (file) => IMAGE_EXTS.has(extOf(file));
 var NoWatermarkFound = class extends Error {
 };
 async function removeWatermark(opts, onProgress, signal) {
-  await fs6.mkdir(opts.outDir, { recursive: true });
-  const parsed = path6.parse(opts.input);
+  await fs7.mkdir(opts.outDir, { recursive: true });
+  const parsed = path8.parse(opts.input);
   const image = isImage(opts.input);
   const ext = image ? parsed.ext : ".mp4";
   const output = uniquePath(opts.outDir, `${parsed.name}-${opts.suffix}`, ext);
@@ -1929,7 +2034,7 @@ async function removeWatermark(opts, onProgress, signal) {
   try {
     const written = await runWmr({ ...opts, input: stage.input, output: stage.output, image }, onProgress, signal);
     if (written && stage.output !== output) {
-      await fs6.copyFile(stage.output, output);
+      await fs7.copyFile(stage.output, output);
     }
     if (!written) throw new NoWatermarkFound();
     return output;
@@ -1942,23 +2047,23 @@ async function stagePaths(input, output, ext) {
   const none = { input, output, cleanup: async () => {
   } };
   if (process.platform !== "win32" || isAscii(input) && isAscii(output)) return none;
-  const candidates = [os5.tmpdir(), path6.join(process.env.PUBLIC ?? "C:\\Users\\Public", "doing-tmp"), "C:\\ProgramData\\doing"];
+  const candidates = [os6.tmpdir(), path8.join(process.env.PUBLIC ?? "C:\\Users\\Public", "doing-tmp"), "C:\\ProgramData\\doing"];
   for (const base of candidates.filter(isAscii)) {
-    const dir = path6.join(base, `doing-wmr-${process.pid}-${Date.now()}`);
+    const dir = path8.join(base, `doing-wmr-${process.pid}-${Date.now()}`);
     try {
-      await fs6.mkdir(dir, { recursive: true });
+      await fs7.mkdir(dir, { recursive: true });
     } catch {
       continue;
     }
     let stagedInput = input;
     if (!isAscii(input)) {
-      stagedInput = path6.join(dir, `input${path6.extname(input).toLowerCase()}`);
-      await fs6.copyFile(input, stagedInput);
+      stagedInput = path8.join(dir, `input${path8.extname(input).toLowerCase()}`);
+      await fs7.copyFile(input, stagedInput);
     }
     return {
       input: stagedInput,
-      output: isAscii(output) ? output : path6.join(dir, `output${ext}`),
-      cleanup: () => fs6.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
+      output: isAscii(output) ? output : path8.join(dir, `output${ext}`),
+      cleanup: () => fs7.rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 })
     };
   }
   return none;
@@ -1986,14 +2091,14 @@ async function runWmr(opts, onProgress, signal) {
     throw error;
   });
   if (signal?.aborted) {
-    await fs6.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
+    await fs7.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
     throw new Error("cancelled");
   }
   if (code !== 0) {
-    await fs6.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
+    await fs7.rm(output, { force: true, maxRetries: 10, retryDelay: 200 });
     throw new Error(errorLine || `wmr exited with code ${code}`);
   }
-  return fs6.access(output).then(
+  return fs7.access(output).then(
     () => true,
     () => false
   );
@@ -2075,7 +2180,7 @@ function AppContent({
   initialUrl: initialUrl2,
   clipboardUrl: clipboardUrl2,
   autoPick,
-  outDir: outDir2,
+  outDir: initialOutDir,
   onOutcome,
   lang: lang2,
   cycleTheme,
@@ -2085,6 +2190,17 @@ function AppContent({
   const t = useStrings();
   const [tab, setTab] = useState6("download");
   const [busy, setBusy] = useState6(false);
+  const [outDir2, setOutDir] = useState6(initialOutDir);
+  const choosingFolder = useRef5(false);
+  const chooseFolder = useCallback3(() => {
+    if (busy || choosingFolder.current) return;
+    choosingFolder.current = true;
+    void pickFolder(t.done.folderTitle, outDir2, t.done.folderPlaceholder).then((folder) => {
+      if (!folder) return;
+      setOutDir(folder);
+      saveSettings({ outDir: folder });
+    }).catch(() => void 0).finally(() => choosingFolder.current = false);
+  }, [busy, outDir2, t]);
   const clicks = useRef5([]);
   const home = useRef5(void 0);
   const switchTab = useCallback3(
@@ -2097,12 +2213,14 @@ function AppContent({
     (input, key) => {
       if (key.ctrl && input === "t") cycleTheme();
       else if (key.ctrl && input === "l") cycleLang();
+      else if (key.ctrl && input === "f") chooseFolder();
       else if (key.tab && key.shift) switchTab(nextTab(tab));
     },
     { isActive: Boolean(process.stdin.isTTY) }
   );
   const shellHints = [
     ...busy ? [] : [["\u21E7\u21E5", t.hint.tabs, () => switchTab(nextTab(tab))]],
+    ...busy ? [] : [["^f", `${t.hint.folder}:${shortenPath(outDir2, os7.homedir(), 24)}`, chooseFolder]],
     ["^l", `${t.hint.lang}:${lang2}`, cycleLang],
     ["^t", `${t.hint.theme}:${theme.mode}`, cycleTheme]
   ];
@@ -2110,7 +2228,7 @@ function AppContent({
     () => ({ outDir: outDir2, setBusy, clicks, home, hints: shellHints }),
     // hints are rebuilt each render; the object identity only matters for setBusy effects
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [outDir2, busy, lang2, theme.mode, tab]
+    [outDir2, busy, lang2, theme.mode, tab, chooseFolder]
   );
   const handleOutcome = useCallback3((filepath) => onOutcome({ filepath }), [onOutcome]);
   const convert = useMemo2(() => convertJob(stringsFor(lang2)), [lang2]);
@@ -2326,7 +2444,7 @@ if (args.update) {
 }
 var initialUrl = args.initialUrl;
 var initialThemeMode = args.themeMode ?? "auto";
-var outDir = args.outDir ? path7.resolve(normalizeDroppedPath(args.outDir)) : DEFAULT_OUT_DIR;
+var outDir = args.outDir ? path9.resolve(normalizeDroppedPath(args.outDir)) : loadSettings().outDir ?? DEFAULT_OUT_DIR;
 var isTTY = Boolean(process.stdout.isTTY);
 var clipboardUrl;
 if (!initialUrl && isTTY) {

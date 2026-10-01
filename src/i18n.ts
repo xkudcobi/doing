@@ -23,6 +23,7 @@ const en = {
     tabs: 'tabs',
     theme: 'theme',
     lang: 'lang',
+    folder: 'folder',
   },
   download: {
     button: 'download',
@@ -90,6 +91,10 @@ const en = {
     find: 'find your file in:',
     findFolder: 'find your files in:',
     another: '↵ another one',
+    reveal: 'o show in folder',
+    revealShort: 'show in folder',
+    folderTitle: 'doing — where should files be saved? Open the folder, then press Open',
+    folderPlaceholder: 'select this folder',
   },
   errors: {
     downloadFailed: (what: string, status: number) =>
@@ -117,6 +122,7 @@ const tr: Strings = {
     tabs: 'sekmeler',
     theme: 'tema',
     lang: 'dil',
+    folder: 'klasör',
   },
   download: {
     button: 'indir',
@@ -184,6 +190,10 @@ const tr: Strings = {
     find: 'dosyan burada:',
     findFolder: 'dosyaların burada:',
     another: '↵ bir tane daha',
+    reveal: 'o klasörde göster',
+    revealShort: 'klasörde göster',
+    folderTitle: 'doing — dosyalar nereye kaydedilsin? Klasöre girip Aç’a bas',
+    folderPlaceholder: 'bu klasörü seç',
   },
   errors: {
     downloadFailed: (what: string, status: number) =>

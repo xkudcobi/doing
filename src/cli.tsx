@@ -9,6 +9,7 @@ import {parseArgs} from './lib/args.js'
 import {readClipboard} from './lib/clipboard.js'
 import {DEFAULT_OUT_DIR, normalizeDroppedPath} from './lib/paths.js'
 import {isProbablyUrl} from './lib/platforms.js'
+import {loadSettings} from './lib/settings.js'
 import {ensureWmr, wmrAsset} from './lib/wmr.js'
 import {updateYtDlp} from './lib/ytdlp.js'
 
@@ -115,7 +116,8 @@ if (args.update) {
 
 const initialUrl = args.initialUrl
 const initialThemeMode = args.themeMode ?? 'auto'
-const outDir = args.outDir ? path.resolve(normalizeDroppedPath(args.outDir)) : DEFAULT_OUT_DIR
+// -o wins for this run; otherwise the folder last picked in the app (^f), else ~/Downloads
+const outDir = args.outDir ? path.resolve(normalizeDroppedPath(args.outDir)) : (loadSettings().outDir ?? DEFAULT_OUT_DIR)
 
 const isTTY = Boolean(process.stdout.isTTY)
 

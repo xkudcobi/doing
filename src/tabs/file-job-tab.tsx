@@ -12,7 +12,7 @@ import {NoPickerAvailable, pickFile} from '../lib/file-picker.js'
 import {isExistingFile, normalizeDroppedPath} from '../lib/paths.js'
 import {useTheme} from '../theme.js'
 import {ChoiceIndicator, ChoiceItem} from './download-tab.js'
-import {DoneView, ErrorView, Footer, Gap, type Hint, ProgressView, errorMessage, registerClicks, useLayout, useShell} from './shared.js'
+import {DoneView, ErrorView, Footer, Gap, type Hint, ProgressView, errorMessage, doneTargets, registerClicks, reveal, useLayout, useShell} from './shared.js'
 
 export type JobOption = {label: string; value: string}
 
@@ -145,17 +145,21 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
       if (key.escape && (phase.name === 'picking' || phase.name === 'error' || phase.name === 'done')) resetToInput()
       if (key.escape && busy) cancelRun()
       if (key.return && (phase.name === 'error' || phase.name === 'done')) resetToInput()
+      if (phase.name === 'done' && input === 'o' && !key.ctrl && !key.meta) revealDone()
     },
     {isActive: Boolean(process.stdin.isTTY)},
   )
 
+  const revealDone = () => {
+    if (phase.name === 'done') reveal(phase.filepath)()
+  }
   const quit: Hint = ['^c', t.hint.quit, () => exit()]
   const back: Hint = ['esc', t.hint.back, resetToInput]
   const own: Record<Phase['name'], Hint[]> = {
     input: [['↵', t.hint.go, () => submit(input)], ['^o', t.file.browse, browse], quit],
     picking: [['↑↓', t.hint.choose], ['↵', t.hint.go, () => pick(highlightRef.current)], back, quit],
     running: [['esc', t.hint.cancel, cancelRun], quit],
-    done: [back, quit],
+    done: [...(phase.name === 'done' ? [['o', t.done.revealShort, revealDone] as Hint] : []), back, quit],
     error: [['↵', t.hint.tryAgain, resetToInput], quit],
   }
   const hints = [...own[phase.name], ...shell.hints]
@@ -165,7 +169,7 @@ export function FileJobTab({job, onOutcome}: {job: FileJob; onOutcome: (filepath
   if (phase.name === 'picking') {
     for (const [index, option] of phase.options.entries()) targets.push({match: option.label, action: () => pick(index)})
   }
-  if (phase.name === 'done') targets.push({match: t.done.another, padX: 4, padY: 1, action: resetToInput})
+  if (phase.name === 'done') targets.push(...doneTargets(t, phase.filepath, false, resetToInput))
   registerClicks(shell, targets, hints)
   shell.home.current = busy ? cancelRun : phase.name !== 'input' ? resetToInput : undefined
 

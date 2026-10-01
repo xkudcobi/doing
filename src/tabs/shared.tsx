@@ -4,9 +4,10 @@ import {Box, Text, useStdout} from 'ink'
 import Spinner from 'ink-spinner'
 import {ProgressBar} from '../components/progress-bar.js'
 import {Shortcuts} from '../components/shortcuts.js'
-import {useStrings} from '../i18n.js'
+import {type Strings, useStrings} from '../i18n.js'
 import type {ClickTarget} from '../lib/click-map.js'
 import {shortenPath} from '../lib/format.js'
+import {revealInFolder} from '../lib/reveal.js'
 import {useTheme} from '../theme.js'
 
 /** [key, label, click action] — the action is what a mouse click on the hint does */
@@ -101,19 +102,39 @@ export function DoneView({filepath, folder = false}: {filepath: string; folder?:
         <Text bold color={theme.primary}>{t.done.title} </Text>
         <Text color={theme.primary}>{folder ? t.done.findFolder : t.done.find}</Text>
       </Text>
-      <Text color={theme.gray} dimColor={theme.dimSecondary}>{shortenPath(filepath, os.homedir(), 60)}</Text>
+      <Text color={theme.gray} dimColor={theme.dimSecondary} underline>{donePath(filepath)}</Text>
       <Gap />
-      <Box
-        borderStyle="round"
-        borderColor={theme.gray}
-        borderDimColor={theme.dimSecondary}
-        borderBackgroundColor={theme.background}
-        paddingX={3}
-      >
-        <Text bold color={theme.primary}>{t.done.another}</Text>
+      <Box gap={2}>
+        {[t.done.another, t.done.reveal].map(label => (
+          <Box
+            key={label}
+            borderStyle="round"
+            borderColor={theme.gray}
+            borderDimColor={theme.dimSecondary}
+            borderBackgroundColor={theme.background}
+            paddingX={3}
+          >
+            <Text bold color={theme.primary}>{label}</Text>
+          </Box>
+        ))}
       </Box>
     </Box>
   )
+}
+
+export const donePath = (filepath: string) => shortenPath(filepath, os.homedir(), 60)
+
+/** Open the result in the file manager — the file selected, or the folder for a playlist. */
+export const reveal = (filepath: string, folder = false) => () => revealInFolder(filepath, folder)
+
+/** Click targets of the done screen: both buttons, plus the printed path itself. */
+export function doneTargets(t: Strings, filepath: string, folder: boolean, another: () => void): ClickTarget[] {
+  const show = reveal(filepath, folder)
+  return [
+    {match: t.done.another, padX: 4, padY: 1, action: another},
+    {match: t.done.reveal, padX: 4, padY: 1, action: show},
+    {match: donePath(filepath), action: show},
+  ]
 }
 
 export function ErrorView({message}: {message: string}) {
